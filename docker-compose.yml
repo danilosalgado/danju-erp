@@ -1,0 +1,86 @@
+
+services:
+  # ==============================
+  # PostgreSQL Database
+  # ==============================
+  postgres:
+    image: postgres:16-alpine
+    container_name: storepro-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: storepro
+      POSTGRES_USER: storepro
+      POSTGRES_PASSWORD: storepro123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - storepro-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U storepro"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ==============================
+  # Spring Boot Backend (API)
+  # ==============================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: storepro-backend
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/storepro
+      SPRING_DATASOURCE_USERNAME: storepro
+      SPRING_DATASOURCE_PASSWORD: storepro123
+      SPRING_PROFILES_ACTIVE: dev
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - storepro-network
+
+  # ==============================
+  # React Frontend (Nginx)
+  # ==============================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: storepro-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - storepro-network
+
+  # ==============================
+  # pgAdmin (opcional - gestão do banco)
+  # ==============================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: storepro-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@storepro.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - storepro-network
+
+volumes:
+  postgres_data:
+
+networks:
+  storepro-network:
+    driver: bridge
