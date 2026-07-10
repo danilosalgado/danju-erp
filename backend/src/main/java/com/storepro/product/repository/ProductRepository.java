@@ -23,9 +23,9 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
     boolean existsBySku(String sku);
 
     @Query("SELECT p FROM Product p WHERE " +
-           "(:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "OR p.barcode LIKE CONCAT('%', :search, '%')) " +
+           "(:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
+           "OR LOWER(p.sku) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
+           "OR p.barcode LIKE CONCAT('%', CAST(:search AS string), '%')) " +
            "AND (:categoryId IS NULL OR p.category.id = :categoryId) " +
            "AND (:supplierId IS NULL OR p.supplier.id = :supplierId) " +
            "AND (:active IS NULL OR p.active = :active)")
