@@ -123,30 +123,7 @@ body::before {
   z-index: 0;
 }
 
-/* Subtle animated shimmer */
-body::after {
-  content: '';
-  position: fixed;
-  top: -50%;
-  left: -50%;
-  right: -50%;
-  bottom: -50%;
-  background: conic-gradient(
-    from 0deg at 50% 50%,
-    transparent 0deg,
-    rgba(6, 182, 212, 0.015) 90deg,
-    transparent 180deg,
-    rgba(251, 191, 36, 0.01) 270deg,
-    transparent 360deg
-  );
-  animation: ambientRotate 60s linear infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-
-@keyframes ambientRotate {
-  to { transform: rotate(360deg); }
-}
+/* Ambient shimmer removed for performance */
 
 #root {
   position: relative;
@@ -220,7 +197,6 @@ input, select, textarea {
   height: 100vh;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border-glass);
-  backdrop-filter: blur(24px);
   display: flex;
   flex-direction: column;
   transition: width var(--transition-base);
@@ -317,7 +293,7 @@ input, select, textarea {
   color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
-  transition: all var(--transition-fast);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
   cursor: pointer;
   white-space: nowrap;
   text-decoration: none;
@@ -376,7 +352,7 @@ input, select, textarea {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .sidebar-toggle:hover {
@@ -476,8 +452,7 @@ input, select, textarea {
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-lg);
   padding: 24px;
-  backdrop-filter: blur(12px);
-  transition: all var(--transition-base);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
   position: relative;
   overflow: hidden;
 }
@@ -534,7 +509,7 @@ input, select, textarea {
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  transition: all var(--transition-base);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
   position: relative;
   overflow: hidden;
 }
@@ -565,7 +540,6 @@ input, select, textarea {
 
 .stat-card:hover {
   border-color: var(--border-primary);
-  transform: translateY(-3px);
   box-shadow: var(--shadow-lg), var(--shadow-glow);
 }
 
@@ -660,26 +634,11 @@ input, select, textarea {
   border-radius: var(--radius-md);
   font-weight: 600;
   font-size: 14px;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   border: 1px solid transparent;
   white-space: nowrap;
   position: relative;
   overflow: hidden;
-}
-
-.btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
-  transition: left 0.5s ease;
-}
-
-.btn:hover::before {
-  left: 100%;
 }
 
 .btn-primary {
@@ -692,7 +651,6 @@ input, select, textarea {
 .btn-primary:hover {
   background: linear-gradient(145deg, var(--primary-500), var(--primary-600));
   box-shadow: 0 4px 20px rgba(6, 182, 212, 0.35);
-  transform: translateY(-1px);
 }
 
 .btn-secondary {
@@ -740,7 +698,6 @@ input, select, textarea {
 .btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-  transform: none !important;
 }
 
 /* === Forms === */
@@ -765,12 +722,12 @@ input, select, textarea {
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: 14px;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .form-input:focus {
   border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.12), var(--shadow-glow);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.12);
   background: var(--bg-tertiary);
 }
 
@@ -802,6 +759,7 @@ input, select, textarea {
   background: var(--bg-card);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-lg);
+  transition: border-color var(--transition-base);
   overflow: hidden;
 }
 
