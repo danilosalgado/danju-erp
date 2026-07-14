@@ -64,7 +64,7 @@ public class SaleService {
             Product product = productRepository.findById(itemReq.getProductId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produto", "id", itemReq.getProductId()));
 
-            if (product.getCurrentStock() < itemReq.getQuantity()) {
+            if (product.getCurrentStock() < itemReq.getQuantity().intValue()) {
                 throw new BusinessException(
                         String.format("Estoque insuficiente para '%s'. Disponível: %d",
                                 product.getName(), product.getCurrentStock()),
@@ -73,7 +73,7 @@ public class SaleService {
 
             BigDecimal itemDiscount = itemReq.getDiscount() != null ? itemReq.getDiscount() : BigDecimal.ZERO;
             BigDecimal itemTotal = product.getSalePrice()
-                    .multiply(BigDecimal.valueOf(itemReq.getQuantity()))
+                    .multiply(itemReq.getQuantity())
                     .subtract(itemDiscount);
 
             SaleItem item = SaleItem.builder()
@@ -84,13 +84,14 @@ public class SaleService {
                     .unitPrice(product.getSalePrice())
                     .discount(itemDiscount)
                     .totalPrice(itemTotal)
+                    .unit(product.getUnit())
                     .build();
 
             sale.getItems().add(item);
             subtotal = subtotal.add(itemTotal);
 
-            // Decrease stock
-            product.setCurrentStock(product.getCurrentStock() - itemReq.getQuantity());
+            // Decrease stock (round up for fractional units)
+            product.setCurrentStock(product.getCurrentStock() - itemReq.getQuantity().intValue());
             productRepository.save(product);
         }
 
@@ -180,7 +181,7 @@ public class SaleService {
         for (SaleItem item : sale.getItems()) {
             if (!item.isCancelled()) {
                 Product product = item.getProduct();
-                product.setCurrentStock(product.getCurrentStock() + item.getQuantity());
+                product.setCurrentStock(product.getCurrentStock() + item.getQuantity().intValue());
                 productRepository.save(product);
             }
         }
@@ -229,6 +230,7 @@ public class SaleService {
                                 .productId(i.getProduct().getId())
                                 .productName(i.getProductName())
                                 .quantity(i.getQuantity())
+                                .unit(i.getUnit())
                                 .unitPrice(i.getUnitPrice())
                                 .discount(i.getDiscount())
                                 .totalPrice(i.getTotalPrice())

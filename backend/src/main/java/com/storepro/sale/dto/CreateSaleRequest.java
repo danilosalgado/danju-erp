@@ -30,8 +30,8 @@ public class CreateSaleRequest {
         @NotNull(message = "Produto é obrigatório")
         private UUID productId;
 
-        @Min(value = 1, message = "Quantidade deve ser maior que zero")
-        private int quantity;
+        @NotNull(message = "Quantidade é obrigatória")
+        private BigDecimal quantity;
 
         private BigDecimal discount;
     }

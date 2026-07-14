@@ -31,8 +31,8 @@ public class SaleItem {
     @Column(name = "product_name", nullable = false, length = 200)
     private String productName;
 
-    @Column(nullable = false)
-    private int quantity;
+    @Column(nullable = false, precision = 10, scale = 3)
+    private BigDecimal quantity;
 
     @Column(name = "unit_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal unitPrice;
@@ -47,4 +47,8 @@ public class SaleItem {
     @Column(nullable = false)
     @Builder.Default
     private boolean cancelled = false;
+
+    @Column(length = 20)
+    @Builder.Default
+    private String unit = "UN";
 }

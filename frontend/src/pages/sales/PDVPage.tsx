@@ -11,6 +11,7 @@ interface Product {
   barcode: string;
   salePrice: number;
   currentStock: number;
+  unit: string;
 }
 
 interface CartItem {
@@ -70,15 +71,19 @@ const PDVPage: React.FC = () => {
     }, 300);
   };
 
+  const isWeightUnit = (unit: string) => ['KG', 'L', 'M'].includes(unit);
+
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(i => i.product.id === product.id);
       if (existing) {
         return prev.map(i =>
-          i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+          i.product.id === product.id
+            ? { ...i, quantity: isWeightUnit(product.unit) ? i.quantity : i.quantity + 1 }
+            : i
         );
       }
-      return [...prev, { product, quantity: 1, discount: 0 }];
+      return [...prev, { product, quantity: isWeightUnit(product.unit) ? 0 : 1, discount: 0 }];
     });
     setSearchQuery('');
     setSearchResults([]);
@@ -87,9 +92,15 @@ const PDVPage: React.FC = () => {
 
   const updateQuantity = (productId: string, delta: number) => {
     setCart(prev => prev
-      .map(i => i.product.id === productId ? { ...i, quantity: Math.max(0, i.quantity + delta) } : i)
+      .map(i => i.product.id === productId ? { ...i, quantity: Math.max(0, +(i.quantity + delta).toFixed(3)) } : i)
       .filter(i => i.quantity > 0)
     );
+  };
+
+  const setQuantity = (productId: string, qty: number) => {
+    setCart(prev => prev.map(i =>
+      i.product.id === productId ? { ...i, quantity: Math.max(0, qty) } : i
+    ));
   };
 
   const removeItem = (productId: string) => {
@@ -237,7 +248,7 @@ const PDVPage: React.FC = () => {
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <span className={`badge ${p.currentStock > 0 ? 'badge-success' : 'badge-danger'}`}>
-                          {p.currentStock}
+                          {p.currentStock} {p.unit}
                         </span>
                       </td>
                       <td style={{ textAlign: 'center' }}>
@@ -304,18 +315,37 @@ const PDVPage: React.FC = () => {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 500, fontSize: 13 }}>{item.product.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--accent-400)' }}>
-                      {formatCurrency(item.product.salePrice)} × {item.quantity}
+                      {formatCurrency(item.product.salePrice)}/{item.product.unit} × {item.quantity}{item.product.unit !== 'UN' ? item.product.unit.toLowerCase() : ''}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <button className="btn btn-ghost btn-icon" style={{ width: 28, height: 28 }} onClick={() => updateQuantity(item.product.id, -1)}>
-                      <Minus size={14} />
-                    </button>
-                    <span style={{ width: 28, textAlign: 'center', fontWeight: 600 }}>{item.quantity}</span>
-                    <button className="btn btn-ghost btn-icon" style={{ width: 28, height: 28 }} onClick={() => updateQuantity(item.product.id, 1)}>
-                      <Plus size={14} />
-                    </button>
-                  </div>
+                  {isWeightUnit(item.product.unit) ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0.001"
+                        value={item.quantity || ''}
+                        onChange={e => setQuantity(item.product.id, parseFloat(e.target.value) || 0)}
+                        style={{
+                          width: 70, textAlign: 'center', fontWeight: 600,
+                          background: 'var(--bg-input)', border: '1px solid var(--border-glass)',
+                          borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+                          padding: '4px 6px', fontSize: 13,
+                        }}
+                      />
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{item.product.unit.toLowerCase()}</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <button className="btn btn-ghost btn-icon" style={{ width: 28, height: 28 }} onClick={() => updateQuantity(item.product.id, -1)}>
+                        <Minus size={14} />
+                      </button>
+                      <span style={{ width: 28, textAlign: 'center', fontWeight: 600 }}>{item.quantity}</span>
+                      <button className="btn btn-ghost btn-icon" style={{ width: 28, height: 28 }} onClick={() => updateQuantity(item.product.id, 1)}>
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  )}
                   <div style={{ width: 80, textAlign: 'right', fontWeight: 600, fontSize: 13 }}>
                     {formatCurrency(item.product.salePrice * item.quantity)}
                   </div>
