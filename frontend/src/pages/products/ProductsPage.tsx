@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   Plus, Search, Edit2, Trash2, X, Check, ChevronLeft, ChevronRight,
-  Package, AlertTriangle, Filter,
+  Package, AlertTriangle, Filter, Camera,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import type { ApiResponse, PageResponse } from '../../types';
+import BarcodeScanner from '../../components/BarcodeScanner';
 
 interface Product {
   id: string;
@@ -34,6 +35,7 @@ const ProductsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
 
   const [form, setForm] = useState({
     name: '', sku: '', barcode: '', brand: '', unit: 'UN',
@@ -242,8 +244,20 @@ const ProductsPage: React.FC = () => {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Código de Barras</label>
-                    <input className="form-input" value={form.barcode}
-                      onChange={(e) => setForm({ ...form, barcode: e.target.value })} />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input className="form-input" value={form.barcode}
+                        onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                        style={{ flex: 1 }} />
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ height: 40, width: 40, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        onClick={() => setShowScanner(true)}
+                        title="Escanear código de barras"
+                      >
+                        <Camera size={18} />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -305,6 +319,18 @@ const ProductsPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Barcode Scanner Modal */}
+      {showScanner && (
+        <BarcodeScanner
+          onClose={() => setShowScanner(false)}
+          onScan={(code) => {
+            setShowScanner(false);
+            setForm(prev => ({ ...prev, barcode: code }));
+            toast.success(`Código capturado: ${code}`);
+          }}
+        />
       )}
     </div>
   );

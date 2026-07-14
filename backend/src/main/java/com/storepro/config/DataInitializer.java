@@ -19,28 +19,28 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (userRepository.findByEmail("admin@storepro.com").isEmpty()) {
+        // Migrate old admin user if exists
+        userRepository.findByEmail("admin@storepro.com").ifPresent(oldAdmin -> {
+            oldAdmin.setEmail("danilo");
+            oldAdmin.setName("Danilo");
+            oldAdmin.setPassword(passwordEncoder.encode("danilo"));
+            userRepository.save(oldAdmin);
+            log.info("✅ Credenciais do admin migradas para: danilo / danilo");
+        });
+
+        if (userRepository.findByEmail("danilo").isEmpty()) {
             User admin = User.builder()
-                    .name("Administrador")
-                    .email("admin@storepro.com")
-                    .password(passwordEncoder.encode("admin123"))
+                    .name("Danilo")
+                    .email("danilo")
+                    .password(passwordEncoder.encode("danilo"))
                     .role(Role.ADMIN)
                     .active(true)
                     .build();
             admin.setCreatedBy("SYSTEM");
             userRepository.save(admin);
-            log.info("✅ Usuário admin criado com sucesso: admin@storepro.com / admin123");
+            log.info("✅ Usuário admin criado: danilo / danilo");
         } else {
-            // Update password to ensure it's correct
-            userRepository.findByEmail("admin@storepro.com").ifPresent(admin -> {
-                if (!passwordEncoder.matches("admin123", admin.getPassword())) {
-                    admin.setPassword(passwordEncoder.encode("admin123"));
-                    userRepository.save(admin);
-                    log.info("✅ Senha do admin atualizada para: admin123");
-                } else {
-                    log.info("✅ Usuário admin já existe com senha correta");
-                }
-            });
+            log.info("✅ Usuário admin já existe");
         }
     }
 }

@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, ShoppingCart, Printer, X, Check } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, ShoppingCart, Printer, X, Check, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import type { ApiResponse } from '../../types';
+import BarcodeScanner from '../../components/BarcodeScanner';
 
 interface Product {
   id: string;
@@ -49,6 +50,7 @@ const PDVPage: React.FC = () => {
   const [amountReceived, setAmountReceived] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<SaleResult | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
 
@@ -211,16 +213,26 @@ const PDVPage: React.FC = () => {
         {/* Left: Product search + results */}
         <div>
           <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ position: 'relative' }}>
-              <Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-              <input
-                ref={searchRef}
-                className="form-input"
-                placeholder="Buscar por nome, SKU ou código de barras..."
-                value={searchQuery}
-                onChange={e => { setSearchQuery(e.target.value); searchProducts(e.target.value); }}
-                style={{ paddingLeft: 42, fontSize: 16, height: 52 }}
-              />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  ref={searchRef}
+                  className="form-input"
+                  placeholder="Buscar por nome, SKU ou código de barras..."
+                  value={searchQuery}
+                  onChange={e => { setSearchQuery(e.target.value); searchProducts(e.target.value); }}
+                  style={{ paddingLeft: 42, fontSize: 16, height: 52 }}
+                />
+              </div>
+              <button
+                className="btn btn-secondary"
+                style={{ height: 52, width: 52, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => setShowScanner(true)}
+                title="Escanear código de barras"
+              >
+                <Camera size={22} />
+              </button>
             </div>
           </div>
 
@@ -434,6 +446,24 @@ const PDVPage: React.FC = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Barcode Scanner Modal */}
+      {showScanner && (
+        <BarcodeScanner
+          onClose={() => setShowScanner(false)}
+          onScan={async (code) => {
+            setShowScanner(false);
+            try {
+              const res = await api.get<ApiResponse<Product>>(`/products/barcode/${code}`);
+              const product = res.data.data;
+              addToCart(product);
+              toast.success(`${product.name} adicionado!`);
+            } catch {
+              toast.error(`Produto não encontrado para código: ${code}`);
+            }
+          }}
+        />
       )}
     </div>
   );

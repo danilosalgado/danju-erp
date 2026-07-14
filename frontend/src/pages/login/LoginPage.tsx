@@ -54,15 +54,15 @@ const LoginPage: React.FC = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label" htmlFor="login-email">E-mail</label>
+            <label className="form-label" htmlFor="login-email">Usuário</label>
             <input
               id="login-email"
-              type="email"
+              type="text"
               className="form-input"
-              placeholder="seu@email.com"
+              placeholder="Digite seu usuário"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+              autoComplete="username"
               autoFocus
             />
           </div>
@@ -114,9 +114,6 @@ const LoginPage: React.FC = () => {
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: 'var(--text-muted)' }}>
-          Credenciais padrão: admin@storepro.com / admin123
-        </p>
       </div>
     </div>
   );
