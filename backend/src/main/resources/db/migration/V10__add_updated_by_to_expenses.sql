@@ -3,4 +3,4 @@
 -- Fixes missing audit column required by BaseEntity
 -- =============================================
 
-ALTER TABLE expenses ADD COLUMN updated_by VARCHAR(100);
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS updated_by VARCHAR(100);
