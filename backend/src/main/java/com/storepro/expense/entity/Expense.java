@@ -1,21 +1,16 @@
 package com.storepro.expense.entity;
 
-import com.storepro.audit.Auditable;
+import com.storepro.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
 
 @Entity
 @Table(name = "expenses")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Expense extends Auditable {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+public class Expense extends BaseEntity {
 
     @Column(nullable = false)
     private String description;

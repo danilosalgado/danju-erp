@@ -15,7 +15,8 @@ CREATE TABLE expenses (
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by VARCHAR(100)
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100)
 );
 
 CREATE INDEX idx_expenses_category ON expenses(category);

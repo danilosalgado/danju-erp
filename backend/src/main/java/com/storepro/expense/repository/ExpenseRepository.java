@@ -14,10 +14,10 @@ import java.util.UUID;
 public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
 
     @Query("SELECT e FROM Expense e WHERE " +
-           "(:category IS NULL OR e.category = :category) AND " +
-           "(:paid IS NULL OR e.paid = :paid) AND " +
-           "(:startDate IS NULL OR e.dueDate >= :startDate) AND " +
-           "(:endDate IS NULL OR e.dueDate <= :endDate) " +
+           "(cast(:category as text) IS NULL OR e.category = :category) AND " +
+           "(cast(:paid as boolean) IS NULL OR e.paid = :paid) AND " +
+           "(cast(:startDate as date) IS NULL OR e.dueDate >= :startDate) AND " +
+           "(cast(:endDate as date) IS NULL OR e.dueDate <= :endDate) " +
            "ORDER BY e.dueDate DESC")
     Page<Expense> findWithFilters(
             @Param("category") String category,

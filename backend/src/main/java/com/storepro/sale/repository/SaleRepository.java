@@ -16,9 +16,9 @@ import java.util.UUID;
 public interface SaleRepository extends JpaRepository<Sale, UUID> {
 
     @Query("SELECT s FROM Sale s WHERE " +
-           "(:status IS NULL OR s.status = :status) " +
-           "AND (:startDate IS NULL OR s.createdAt >= :startDate) " +
-           "AND (:endDate IS NULL OR s.createdAt <= :endDate) " +
+           "(cast(:status as text) IS NULL OR s.status = :status) " +
+           "AND (cast(:startDate as timestamp) IS NULL OR s.createdAt >= :startDate) " +
+           "AND (cast(:endDate as timestamp) IS NULL OR s.createdAt <= :endDate) " +
            "ORDER BY s.createdAt DESC")
     Page<Sale> findWithFilters(
             @Param("status") String status,
