@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Plus, Search, Edit2, Trash2, X, Check, ChevronLeft, ChevronRight,
-  Package, AlertTriangle, Filter, Camera,
+  Package, AlertTriangle, Filter, Camera, FolderPlus,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import type { ApiResponse, PageResponse } from '../../types';
 import BarcodeScanner from '../../components/BarcodeScanner';
+
+interface SimpleCategory {
+  id: string;
+  name: string;
+}
 
 interface Product {
   id: string;
@@ -27,27 +33,40 @@ interface Product {
 }
 
 const ProductsPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(searchParams.get('categoryId') || '');
+  const [categories, setCategories] = useState<SimpleCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [showScanner, setShowScanner] = useState(false);
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   const [form, setForm] = useState({
     name: '', sku: '', barcode: '', brand: '', unit: 'UN',
     costPrice: '', salePrice: '', minStock: '0', currentStock: '0',
-    stockLocation: '', description: '',
+    stockLocation: '', description: '', categoryId: '',
   });
+
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get<ApiResponse<SimpleCategory[]>>('/categories');
+      setCategories(res.data.data);
+    } catch {}
+  };
 
   const fetchProducts = async () => {
     setLoading(true);
     try {
       const params: any = { page, size: 15 };
       if (search) params.search = search;
+      if (selectedCategoryId) params.categoryId = selectedCategoryId;
       const res = await api.get<ApiResponse<PageResponse<Product>>>('/products', { params });
       setProducts(res.data.data.content);
       setTotal(res.data.data.totalElements);
@@ -56,13 +75,38 @@ const ProductsPage: React.FC = () => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchProducts(); }, [page, search]);
+  useEffect(() => { fetchCategories(); }, []);
+  useEffect(() => { fetchProducts(); }, [page, search, selectedCategoryId]);
+
+  const handleCategoryFilter = (catId: string) => {
+    setSelectedCategoryId(catId);
+    setPage(0);
+    if (catId) {
+      setSearchParams({ categoryId: catId });
+    } else {
+      setSearchParams({});
+    }
+  };
+
+  const createQuickCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    try {
+      const res = await api.post<ApiResponse<SimpleCategory>>('/categories', { name: newCategoryName });
+      toast.success('Categoria criada!');
+      setNewCategoryName('');
+      setShowNewCategory(false);
+      await fetchCategories();
+      setForm(prev => ({ ...prev, categoryId: res.data.data.id }));
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erro ao criar categoria');
+    }
+  };
 
   const openCreate = () => {
     setEditing(null);
     setForm({ name: '', sku: '', barcode: '', brand: '', unit: 'UN',
       costPrice: '', salePrice: '', minStock: '0', currentStock: '0',
-      stockLocation: '', description: '' });
+      stockLocation: '', description: '', categoryId: '' });
     setModalOpen(true);
   };
 
@@ -72,7 +116,7 @@ const ProductsPage: React.FC = () => {
       name: p.name, sku: p.sku || '', barcode: p.barcode || '', brand: p.brand || '',
       unit: p.unit, costPrice: String(p.costPrice), salePrice: String(p.salePrice),
       minStock: String(p.minStock), currentStock: String(p.currentStock),
-      stockLocation: '', description: '',
+      stockLocation: '', description: '', categoryId: (p as any).categoryId || '',
     });
     setModalOpen(true);
   };
@@ -86,6 +130,7 @@ const ProductsPage: React.FC = () => {
         costPrice: parseFloat(form.costPrice), salePrice: parseFloat(form.salePrice),
         minStock: parseInt(form.minStock), currentStock: parseInt(form.currentStock),
         stockLocation: form.stockLocation || undefined,
+        categoryId: form.categoryId || undefined,
       };
       if (editing) {
         await api.put(`/products/${editing.id}`, payload);
@@ -124,6 +169,25 @@ const ProductsPage: React.FC = () => {
           <Plus size={18} /> Novo Produto
         </button>
       </div>
+
+      {/* Category Filter Tabs */}
+      {categories.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          <button
+            className={`btn ${!selectedCategoryId ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ fontSize: 13, padding: '6px 14px' }}
+            onClick={() => handleCategoryFilter('')}
+          >Todas</button>
+          {categories.map(cat => (
+            <button
+              key={cat.id}
+              className={`btn ${selectedCategoryId === cat.id ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ fontSize: 13, padding: '6px 14px' }}
+              onClick={() => handleCategoryFilter(cat.id)}
+            >{cat.name}</button>
+          ))}
+        </div>
+      )}
 
       <div className="table-container">
         <div className="table-toolbar">
@@ -262,9 +326,35 @@ const ProductsPage: React.FC = () => {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <div className="form-group">
-                    <label className="form-label">Marca</label>
-                    <input className="form-input" value={form.brand}
-                      onChange={(e) => setForm({ ...form, brand: e.target.value })} />
+                    <label className="form-label">Categoria</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <select className="form-input form-select" value={form.categoryId}
+                        onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+                        style={{ flex: 1 }}>
+                        <option value="">Sem categoria</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                      </select>
+                      <button type="button" className="btn btn-secondary"
+                        style={{ height: 40, width: 40, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        onClick={() => setShowNewCategory(true)} title="Nova Categoria">
+                        <FolderPlus size={18} />
+                      </button>
+                    </div>
+                    {showNewCategory && (
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                        <input className="form-input" placeholder="Nome da categoria"
+                          value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)}
+                          style={{ flex: 1 }} autoFocus />
+                        <button type="button" className="btn btn-primary btn-sm" onClick={createQuickCategory}>
+                          <Check size={14} />
+                        </button>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}>
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="form-group">
                     <label className="form-label">Unidade</label>
@@ -277,6 +367,13 @@ const ProductsPage: React.FC = () => {
                       <option value="CX">Caixa</option>
                       <option value="PC">Peça</option>
                     </select>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div className="form-group">
+                    <label className="form-label">Marca</label>
+                    <input className="form-input" value={form.brand}
+                      onChange={(e) => setForm({ ...form, brand: e.target.value })} />
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

@@ -43,6 +43,7 @@ const navItems = [
   {
     section: 'Operações',
     items: [
+      { to: '/sales-history', icon: Receipt, label: 'Vendas' },
       { to: '/inventory', icon: Warehouse, label: 'Estoque' },
       { to: '/purchases', icon: ShoppingCart, label: 'Compras' },
     ],

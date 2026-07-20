@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Edit2, Trash2, X, Check, ChevronRight, FolderTree,
-  FolderPlus, Folder, FolderOpen,
+  FolderPlus, Folder, FolderOpen, Package,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
@@ -19,6 +20,7 @@ interface Category {
 }
 
 const CategoriesPage: React.FC = () => {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -138,6 +140,8 @@ const CategoriesPage: React.FC = () => {
               {cat.active ? 'Ativo' : 'Inativo'}
             </span>
             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+              <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/products?categoryId=${cat.id}`)}
+                title="Ver produtos desta categoria"><Package size={15} /></button>
               <button className="btn btn-ghost btn-sm" onClick={() => openCreate(cat.id)}
                 title="Adicionar subcategoria"><FolderPlus size={15} /></button>
               <button className="btn btn-ghost btn-sm" onClick={() => openEdit(cat)}

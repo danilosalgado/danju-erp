@@ -9,7 +9,9 @@ import ProductsPage from './pages/products/ProductsPage';
 import CategoriesPage from './pages/categories/CategoriesPage';
 import SuppliersPage from './pages/suppliers/SuppliersPage';
 import PDVPage from './pages/sales/PDVPage';
+import SalesHistoryPage from './pages/sales/SalesHistoryPage';
 import InvoiceImportPage from './pages/invoices/InvoiceImportPage';
+import FinancialPage from './pages/financial/FinancialPage';
 
 // Placeholder for modules not yet built
 const ComingSoon: React.FC<{ title: string }> = ({ title }) => (
@@ -54,7 +56,8 @@ const App: React.FC = () => {
         <Route path="/inventory" element={<ComingSoon title="Estoque" />} />
         <Route path="/purchases" element={<ComingSoon title="Compras" />} />
         <Route path="/sales" element={<PDVPage />} />
-        <Route path="/financial" element={<ComingSoon title="Financeiro" />} />
+        <Route path="/sales-history" element={<SalesHistoryPage />} />
+        <Route path="/financial" element={<FinancialPage />} />
         <Route path="/invoices" element={<InvoiceImportPage />} />
         <Route path="/reports" element={<ComingSoon title="Relatórios" />} />
         <Route path="/audit" element={<ComingSoon title="Auditoria" />} />

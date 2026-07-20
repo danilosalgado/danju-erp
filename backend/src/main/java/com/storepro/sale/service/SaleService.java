@@ -191,6 +191,115 @@ public class SaleService {
         log.info("Venda #{} cancelada", id);
     }
 
+    @Transactional
+    public SaleResponse updateSale(UUID id, CreateSaleRequest request) {
+        Sale sale = saleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Venda", "id", id));
+
+        if ("CANCELADA".equals(sale.getStatus())) {
+            throw new BusinessException("Não é possível editar uma venda cancelada");
+        }
+
+        // 1. Restore stock from old items
+        for (SaleItem item : sale.getItems()) {
+            if (!item.isCancelled()) {
+                Product product = item.getProduct();
+                product.setCurrentStock(product.getCurrentStock() + item.getQuantity().intValue());
+                productRepository.save(product);
+            }
+        }
+
+        // 2. Clear old items and payments
+        sale.getItems().clear();
+        sale.getPayments().clear();
+
+        // 3. Process new items
+        BigDecimal subtotal = BigDecimal.ZERO;
+        for (CreateSaleRequest.SaleItemRequest itemReq : request.getItems()) {
+            Product product = productRepository.findById(itemReq.getProductId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Produto", "id", itemReq.getProductId()));
+
+            if (product.getCurrentStock() < itemReq.getQuantity().intValue()) {
+                throw new BusinessException(
+                        String.format("Estoque insuficiente para '%s'. Disponível: %d",
+                                product.getName(), product.getCurrentStock()),
+                        HttpStatus.BAD_REQUEST);
+            }
+
+            BigDecimal itemDiscount = itemReq.getDiscount() != null ? itemReq.getDiscount() : BigDecimal.ZERO;
+            BigDecimal itemTotal = product.getSalePrice()
+                    .multiply(itemReq.getQuantity())
+                    .subtract(itemDiscount);
+
+            SaleItem item = SaleItem.builder()
+                    .sale(sale)
+                    .product(product)
+                    .productName(product.getName())
+                    .quantity(itemReq.getQuantity())
+                    .unitPrice(product.getSalePrice())
+                    .discount(itemDiscount)
+                    .totalPrice(itemTotal)
+                    .unit(product.getUnit())
+                    .build();
+
+            sale.getItems().add(item);
+            subtotal = subtotal.add(itemTotal);
+
+            product.setCurrentStock(product.getCurrentStock() - itemReq.getQuantity().intValue());
+            productRepository.save(product);
+        }
+
+        sale.setSubtotal(subtotal);
+
+        // 4. Recalculate discounts
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        if (request.getDiscountType() != null && request.getDiscountValue() != null) {
+            sale.setDiscountType(request.getDiscountType());
+            sale.setDiscountValue(request.getDiscountValue());
+            if ("PERCENTUAL".equals(request.getDiscountType())) {
+                discountAmount = subtotal.multiply(request.getDiscountValue())
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            } else {
+                discountAmount = request.getDiscountValue();
+            }
+        }
+        sale.setDiscountAmount(discountAmount);
+
+        BigDecimal surcharge = request.getSurcharge() != null ? request.getSurcharge() : BigDecimal.ZERO;
+        sale.setSurcharge(surcharge);
+
+        BigDecimal total = subtotal.subtract(discountAmount).add(surcharge);
+        sale.setTotal(total);
+
+        // 5. Process new payments
+        BigDecimal totalPaid = BigDecimal.ZERO;
+        for (CreateSaleRequest.SalePaymentRequest payReq : request.getPayments()) {
+            SalePayment payment = SalePayment.builder()
+                    .sale(sale)
+                    .method(payReq.getMethod())
+                    .amount(payReq.getAmount())
+                    .installments(payReq.getInstallments() > 0 ? payReq.getInstallments() : 1)
+                    .reference(payReq.getReference())
+                    .build();
+
+            if ("DINHEIRO".equals(payReq.getMethod())) {
+                BigDecimal remaining = total.subtract(totalPaid);
+                if (payReq.getAmount().compareTo(remaining) > 0) {
+                    payment.setChangeAmount(payReq.getAmount().subtract(remaining));
+                }
+            }
+
+            sale.getPayments().add(payment);
+            totalPaid = totalPaid.add(payReq.getAmount());
+        }
+
+        sale.setNotes(request.getNotes());
+        Sale saved = saleRepository.save(sale);
+        log.info("Venda #{} editada: R$ {}", saved.getId(), total);
+
+        return toResponse(saved);
+    }
+
     // Dashboard queries
     @Transactional(readOnly = true)
     public BigDecimal getTotalRevenue(LocalDateTime start, LocalDateTime end) {

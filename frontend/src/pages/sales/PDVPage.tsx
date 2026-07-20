@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/client';
 import type { ApiResponse } from '../../types';
 import BarcodeScanner from '../../components/BarcodeScanner';
+import { usePDVStore } from '../../store/usePDVStore';
 
 interface Product {
   id: string;
@@ -41,10 +42,10 @@ const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
 const PDVPage: React.FC = () => {
+  const { cart, addToCart: storeAddToCart, updateQuantity, setQuantity, removeItem, clearCart } = usePDVStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [searching, setSearching] = useState(false);
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [showPayment, setShowPayment] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState('DINHEIRO');
   const [amountReceived, setAmountReceived] = useState('');
@@ -76,37 +77,10 @@ const PDVPage: React.FC = () => {
   const isWeightUnit = (unit: string) => ['KG', 'L', 'M'].includes(unit);
 
   const addToCart = (product: Product) => {
-    setCart(prev => {
-      const existing = prev.find(i => i.product.id === product.id);
-      if (existing) {
-        return prev.map(i =>
-          i.product.id === product.id
-            ? { ...i, quantity: isWeightUnit(product.unit) ? i.quantity : i.quantity + 1 }
-            : i
-        );
-      }
-      return [...prev, { product, quantity: isWeightUnit(product.unit) ? 0 : 1, discount: 0 }];
-    });
+    storeAddToCart(product, isWeightUnit(product.unit));
     setSearchQuery('');
     setSearchResults([]);
     searchRef.current?.focus();
-  };
-
-  const updateQuantity = (productId: string, delta: number) => {
-    setCart(prev => prev
-      .map(i => i.product.id === productId ? { ...i, quantity: Math.max(0, +(i.quantity + delta).toFixed(3)) } : i)
-      .filter(i => i.quantity > 0)
-    );
-  };
-
-  const setQuantity = (productId: string, qty: number) => {
-    setCart(prev => prev.map(i =>
-      i.product.id === productId ? { ...i, quantity: Math.max(0, qty) } : i
-    ));
-  };
-
-  const removeItem = (productId: string) => {
-    setCart(prev => prev.filter(i => i.product.id !== productId));
   };
 
   const subtotal = cart.reduce((sum, i) => sum + i.product.salePrice * i.quantity - i.discount, 0);
@@ -128,7 +102,7 @@ const PDVPage: React.FC = () => {
       };
       const res = await api.post<ApiResponse<SaleResult>>('/sales', payload);
       setReceipt(res.data.data);
-      setCart([]);
+      clearCart();
       setShowPayment(false);
       toast.success('Venda registrada com sucesso!');
     } catch (err: any) {

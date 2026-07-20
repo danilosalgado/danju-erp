@@ -58,4 +58,12 @@ public class SaleController {
         saleService.cancelSale(id);
         return ResponseEntity.ok(ApiResponse.success("Venda cancelada", null));
     }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
+    @Operation(summary = "Editar venda finalizada")
+    public ResponseEntity<ApiResponse<SaleResponse>> update(
+            @PathVariable UUID id, @Valid @RequestBody CreateSaleRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Venda atualizada", saleService.updateSale(id, request)));
+    }
 }

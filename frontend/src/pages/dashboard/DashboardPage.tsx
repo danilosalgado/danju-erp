@@ -186,7 +186,8 @@ const DashboardPage: React.FC = () => {
                     tick={{ fill: '#4a7a94', fontSize: 11 }}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v: number) => `R$${(v / 1000).toFixed(0)}k`}
+                    domain={[0, 'auto']}
+                    tickFormatter={(v: number) => v >= 1000 ? `R$${(v / 1000).toFixed(1)}k` : `R$${v.toFixed(0)}`}
                   />
                   <Tooltip
                     contentStyle={{
