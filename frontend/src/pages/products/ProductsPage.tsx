@@ -147,12 +147,12 @@ const ProductsPage: React.FC = () => {
   };
 
   const handleDelete = async (p: Product) => {
-    if (!confirm(`Desativar "${p.name}"?`)) return;
+    if (!confirm(`Apagar "${p.name}"? Esta ação não pode ser desfeita.`)) return;
     try {
       await api.delete(`/products/${p.id}`);
-      toast.success('Produto desativado');
+      toast.success('Produto removido');
       fetchProducts();
-    } catch { toast.error('Erro ao desativar'); }
+    } catch { toast.error('Erro ao remover produto'); }
   };
 
   const fmt = (v: number) =>
@@ -218,7 +218,7 @@ const ProductsPage: React.FC = () => {
                   <th style={{ textAlign: 'right' }}>Venda</th>
                   <th style={{ textAlign: 'right' }}>Margem</th>
                   <th style={{ textAlign: 'center' }}>Estoque</th>
-                  <th>Status</th>
+
                   <th style={{ textAlign: 'right' }}>Ações</th>
                 </tr>
               </thead>
@@ -253,11 +253,7 @@ const ProductsPage: React.FC = () => {
                         </span>
                       </div>
                     </td>
-                    <td>
-                      <span className={`badge ${p.active ? 'badge-success' : 'badge-danger'}`}>
-                        {p.active ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </td>
+
                     <td style={{ textAlign: 'right' }}>
                       <div className="flex gap-2" style={{ justifyContent: 'flex-end' }}>
                         <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}><Edit2 size={16} /></button>

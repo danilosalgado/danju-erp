@@ -144,8 +144,14 @@ public class ProductService {
     @Transactional
     public void delete(UUID id) {
         Product product = findById(id);
-        product.setActive(false);
-        productRepository.save(product);
+        try {
+            productRepository.delete(product);
+            productRepository.flush();
+        } catch (Exception e) {
+            // FK constraint (product was sold) — fallback to soft-delete
+            product.setActive(false);
+            productRepository.save(product);
+        }
     }
 
     private Product findById(UUID id) {

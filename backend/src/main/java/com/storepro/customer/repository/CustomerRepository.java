@@ -17,10 +17,17 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
     Optional<Customer> findByCpfCnpj(String cpfCnpj);
     boolean existsByCpfCnpj(String cpfCnpj);
 
-    @Query("SELECT c FROM Customer c WHERE " +
-           "(:search IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "OR c.cpfCnpj LIKE CONCAT('%', :search, '%') " +
-           "OR LOWER(c.email) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:active IS NULL OR c.active = :active)")
+    @Query(value = "SELECT c.* FROM customers c WHERE " +
+           "(:search IS NULL OR unaccent(lower(c.name)) LIKE '%' || unaccent(lower(cast(:search as text))) || '%' " +
+           "OR c.cpf_cnpj LIKE '%' || cast(:search as text) || '%' " +
+           "OR unaccent(lower(COALESCE(c.email, ''))) LIKE '%' || unaccent(lower(cast(:search as text))) || '%') " +
+           "AND (cast(:active as boolean) IS NULL OR c.active = :active) " +
+           "ORDER BY c.name",
+           countQuery = "SELECT count(*) FROM customers c WHERE " +
+           "(:search IS NULL OR unaccent(lower(c.name)) LIKE '%' || unaccent(lower(cast(:search as text))) || '%' " +
+           "OR c.cpf_cnpj LIKE '%' || cast(:search as text) || '%' " +
+           "OR unaccent(lower(COALESCE(c.email, ''))) LIKE '%' || unaccent(lower(cast(:search as text))) || '%') " +
+           "AND (cast(:active as boolean) IS NULL OR c.active = :active)",
+           nativeQuery = true)
     Page<Customer> findWithFilters(@Param("search") String search, @Param("active") Boolean active, Pageable pageable);
 }

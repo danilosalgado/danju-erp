@@ -13,6 +13,7 @@ interface PDVProduct {
 interface CartItem {
   product: PDVProduct;
   quantity: number;
+  unitPrice: number; // editable sale price (starts as product.salePrice)
   discount: number;
 }
 
@@ -21,6 +22,7 @@ interface PDVStore {
   addToCart: (product: PDVProduct, isWeightUnit: boolean) => void;
   updateQuantity: (productId: string, delta: number) => void;
   setQuantity: (productId: string, qty: number) => void;
+  setItemPrice: (productId: string, price: number) => void;
   removeItem: (productId: string) => void;
   clearCart: () => void;
 }
@@ -41,7 +43,10 @@ export const usePDVStore = create<PDVStore>((set) => ({
         };
       }
       return {
-        cart: [...state.cart, { product, quantity: isWeightUnit ? 0 : 1, discount: 0 }],
+        cart: [
+          ...state.cart,
+          { product, quantity: isWeightUnit ? 0 : 1, unitPrice: product.salePrice, discount: 0 },
+        ],
       };
     }),
 
@@ -60,6 +65,13 @@ export const usePDVStore = create<PDVStore>((set) => ({
     set((state) => ({
       cart: state.cart.map((i) =>
         i.product.id === productId ? { ...i, quantity: Math.max(0, qty) } : i
+      ),
+    })),
+
+  setItemPrice: (productId, price) =>
+    set((state) => ({
+      cart: state.cart.map((i) =>
+        i.product.id === productId ? { ...i, unitPrice: Math.max(0, price) } : i
       ),
     })),
 

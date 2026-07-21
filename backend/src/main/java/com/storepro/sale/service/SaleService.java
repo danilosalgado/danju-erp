@@ -14,6 +14,7 @@ import com.storepro.sale.entity.SaleItem;
 import com.storepro.sale.entity.SalePayment;
 import com.storepro.sale.repository.SaleRepository;
 import com.storepro.user.entity.User;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -38,6 +39,7 @@ public class SaleService {
     private final SaleRepository saleRepository;
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
+    private final EntityManager entityManager;
 
     @Transactional
     public SaleResponse createSale(CreateSaleRequest request) {
@@ -147,8 +149,10 @@ public class SaleService {
                     HttpStatus.BAD_REQUEST);
         }
 
-        Sale saved = saleRepository.save(sale);
-        log.info("Venda #{} realizada: R$ {}", saved.getId(), total);
+        Sale saved = saleRepository.saveAndFlush(sale);
+        // Refresh to load DB-generated sale_number (SERIAL)
+        entityManager.refresh(saved);
+        log.info("Venda #{} realizada: R$ {}", saved.getSaleNumber(), total);
 
         return toResponse(saved);
     }

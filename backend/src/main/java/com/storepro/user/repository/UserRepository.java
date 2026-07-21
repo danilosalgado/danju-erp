@@ -21,11 +21,18 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByPasswordResetToken(String token);
 
-    @Query("SELECT u FROM User u WHERE " +
-           "(:search IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:role IS NULL OR u.role = :role) " +
-           "AND (:active IS NULL OR u.active = :active)")
+    @Query(value = "SELECT u.* FROM users u WHERE " +
+           "(:search IS NULL OR unaccent(lower(u.name)) LIKE '%' || unaccent(lower(cast(:search as text))) || '%' " +
+           "OR unaccent(lower(u.email)) LIKE '%' || unaccent(lower(cast(:search as text))) || '%') " +
+           "AND (cast(cast(:role as text) as varchar) IS NULL OR u.role = cast(cast(:role as text) as varchar)) " +
+           "AND (cast(:active as boolean) IS NULL OR u.active = :active) " +
+           "ORDER BY u.name",
+           countQuery = "SELECT count(*) FROM users u WHERE " +
+           "(:search IS NULL OR unaccent(lower(u.name)) LIKE '%' || unaccent(lower(cast(:search as text))) || '%' " +
+           "OR unaccent(lower(u.email)) LIKE '%' || unaccent(lower(cast(:search as text))) || '%') " +
+           "AND (cast(cast(:role as text) as varchar) IS NULL OR u.role = cast(cast(:role as text) as varchar)) " +
+           "AND (cast(:active as boolean) IS NULL OR u.active = :active)",
+           nativeQuery = true)
     Page<User> findWithFilters(
             @Param("search") String search,
             @Param("role") Role role,

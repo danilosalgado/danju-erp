@@ -22,13 +22,25 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
 
     boolean existsBySku(String sku);
 
-    @Query("SELECT p FROM Product p WHERE " +
-           "(:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
-           "OR LOWER(p.sku) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
-           "OR p.barcode LIKE CONCAT('%', CAST(:search AS string), '%')) " +
-           "AND (:categoryId IS NULL OR p.category.id = :categoryId) " +
-           "AND (:supplierId IS NULL OR p.supplier.id = :supplierId) " +
-           "AND (:active IS NULL OR p.active = :active)")
+    @Query(value = "SELECT p.* FROM products p " +
+           "LEFT JOIN categories c ON p.category_id = c.id " +
+           "WHERE (:search IS NULL OR " +
+           "  unaccent(lower(p.name)) LIKE '%' || unaccent(lower(cast(:search as text))) || '%' " +
+           "  OR lower(p.sku) LIKE '%' || lower(cast(:search as text)) || '%' " +
+           "  OR p.barcode LIKE '%' || cast(:search as text) || '%') " +
+           "AND (cast(:categoryId as uuid) IS NULL OR p.category_id = :categoryId) " +
+           "AND (cast(:supplierId as uuid) IS NULL OR p.supplier_id = :supplierId) " +
+           "AND (cast(:active as boolean) IS NULL OR p.active = :active) " +
+           "ORDER BY p.name",
+           countQuery = "SELECT count(*) FROM products p " +
+           "WHERE (:search IS NULL OR " +
+           "  unaccent(lower(p.name)) LIKE '%' || unaccent(lower(cast(:search as text))) || '%' " +
+           "  OR lower(p.sku) LIKE '%' || lower(cast(:search as text)) || '%' " +
+           "  OR p.barcode LIKE '%' || cast(:search as text) || '%') " +
+           "AND (cast(:categoryId as uuid) IS NULL OR p.category_id = :categoryId) " +
+           "AND (cast(:supplierId as uuid) IS NULL OR p.supplier_id = :supplierId) " +
+           "AND (cast(:active as boolean) IS NULL OR p.active = :active)",
+           nativeQuery = true)
     Page<Product> findWithFilters(
             @Param("search") String search,
             @Param("categoryId") UUID categoryId,
