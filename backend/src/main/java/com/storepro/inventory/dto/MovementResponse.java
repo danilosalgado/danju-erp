@@ -21,9 +21,9 @@ public class MovementResponse {
     private String productName;
     private String productSku;
     private MovementType type;
-    private int quantity;
-    private int previousStock;
-    private int newStock;
+    private BigDecimal quantity;
+    private BigDecimal previousStock;
+    private BigDecimal newStock;
     private BigDecimal unitCost;
     private String reason;
     private String lotNumber;

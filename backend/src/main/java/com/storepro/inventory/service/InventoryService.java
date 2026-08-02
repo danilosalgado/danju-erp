@@ -22,6 +22,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -39,10 +40,10 @@ public class InventoryService {
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Produto", "id", request.getProductId()));
 
-        int previousStock = product.getCurrentStock();
-        int newStock = calculateNewStock(previousStock, request.getType(), request.getQuantity());
+        BigDecimal previousStock = product.getCurrentStock();
+        BigDecimal newStock = calculateNewStock(previousStock, request.getType(), request.getQuantity());
 
-        if (newStock < 0) {
+        if (newStock.compareTo(java.math.BigDecimal.ZERO) < 0) {
             throw new BusinessException("Estoque insuficiente. Estoque atual: " + previousStock, HttpStatus.BAD_REQUEST);
         }
 
@@ -68,12 +69,12 @@ public class InventoryService {
         // Update cost price if it's an entry movement with unit cost
         if (request.getType() == MovementType.ENTRADA && request.getUnitCost() != null) {
             // Weighted average cost
-            var totalOldValue = product.getCostPrice().multiply(java.math.BigDecimal.valueOf(previousStock));
-            var totalNewValue = request.getUnitCost().multiply(java.math.BigDecimal.valueOf(request.getQuantity()));
-            if (newStock > 0) {
+            var totalOldValue = product.getCostPrice().multiply(previousStock);
+            var totalNewValue = request.getUnitCost().multiply(request.getQuantity());
+            if (newStock.compareTo(java.math.BigDecimal.ZERO) > 0) {
                 product.setCostPrice(
                     totalOldValue.add(totalNewValue)
-                        .divide(java.math.BigDecimal.valueOf(newStock), 2, java.math.RoundingMode.HALF_UP)
+                        .divide(newStock, 2, java.math.RoundingMode.HALF_UP)
                 );
             }
         }
@@ -112,12 +113,12 @@ public class InventoryService {
         );
     }
 
-    private int calculateNewStock(int currentStock, MovementType type, int quantity) {
+    private BigDecimal calculateNewStock(BigDecimal currentStock, MovementType type, BigDecimal quantity) {
         return switch (type) {
-            case ENTRADA -> currentStock + quantity;
-            case SAIDA -> currentStock - quantity;
+            case ENTRADA -> currentStock.add(quantity);
+            case SAIDA -> currentStock.subtract(quantity);
             case AJUSTE, INVENTARIO -> quantity; // absolute value
-            case TRANSFERENCIA -> currentStock - quantity;
+            case TRANSFERENCIA -> currentStock.subtract(quantity);
         };
     }
 

@@ -27,14 +27,14 @@ public class InventoryMovement extends BaseEntity {
     @Column(nullable = false, length = 20)
     private MovementType type;
 
-    @Column(nullable = false)
-    private int quantity;
+    @Column(nullable = false, precision = 10, scale = 3)
+    private BigDecimal quantity;
 
-    @Column(name = "previous_stock")
-    private int previousStock;
+    @Column(name = "previous_stock", precision = 10, scale = 3)
+    private BigDecimal previousStock;
 
-    @Column(name = "new_stock")
-    private int newStock;
+    @Column(name = "new_stock", precision = 10, scale = 3)
+    private BigDecimal newStock;
 
     @Column(name = "unit_cost", precision = 12, scale = 2)
     private BigDecimal unitCost;

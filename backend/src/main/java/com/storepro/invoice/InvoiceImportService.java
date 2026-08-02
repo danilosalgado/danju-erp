@@ -165,7 +165,7 @@ public class InvoiceImportService {
                     .costPrice(unitPrice)
                     .salePrice(unitPrice.multiply(BigDecimal.valueOf(1.3)).setScale(2, java.math.RoundingMode.HALF_UP))
                     .currentStock(quantity)
-                    .minStock(5)
+                    .minStock(BigDecimal.valueOf(5))
                     .supplier(supplier)
                     .active(true)
                     .build();

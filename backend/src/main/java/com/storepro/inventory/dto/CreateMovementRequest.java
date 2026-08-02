@@ -18,8 +18,8 @@ public class CreateMovementRequest {
     @NotNull(message = "Tipo de movimentação é obrigatório")
     private MovementType type;
 
-    @Min(value = 1, message = "Quantidade deve ser maior que zero")
-    private int quantity;
+    @Min(value = 0, message = "Quantidade deve ser maior que zero")
+    private BigDecimal quantity;
 
     private BigDecimal unitCost;
     private String reason;
