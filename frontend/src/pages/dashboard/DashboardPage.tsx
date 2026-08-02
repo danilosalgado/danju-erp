@@ -62,11 +62,18 @@ const formatDate = (dateStr: string) => {
 
 const DashboardPage: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [stockValue, setStockValue] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get<ApiResponse<DashboardData>>('/dashboard')
-      .then(res => setData(res.data.data))
+    Promise.all([
+      api.get<ApiResponse<DashboardData>>('/dashboard'),
+      api.get<ApiResponse<{ totalSaleValue: number }>>('/products/inventory-summary'),
+    ])
+      .then(([dashRes, stockRes]) => {
+        setData(dashRes.data.data);
+        setStockValue(stockRes.data.data.totalSaleValue ?? 0);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -112,11 +119,11 @@ const DashboardPage: React.FC = () => {
       color: 'info',
     },
     {
-      label: 'Ticket Médio',
-      value: formatCurrency(d.averageTicket ?? 0),
+      label: 'Valor do Estoque',
+      value: formatCurrency(stockValue),
       change: `${d.totalProducts} produtos`,
       positive: true,
-      icon: DollarSign,
+      icon: Package,
       color: 'warning',
     },
   ];
