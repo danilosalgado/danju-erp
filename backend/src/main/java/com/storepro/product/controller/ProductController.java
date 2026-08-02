@@ -75,9 +75,15 @@ public class ProductController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
-    @Operation(summary = "Desativar produto")
+    @Operation(summary = "Apagar produto")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         productService.delete(id);
-        return ResponseEntity.ok(ApiResponse.success("Produto desativado", null));
+        return ResponseEntity.ok(ApiResponse.success("Produto removido", null));
+    }
+
+    @GetMapping("/inventory-summary")
+    @Operation(summary = "Resumo do inventário")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getInventorySummary() {
+        return ResponseEntity.ok(ApiResponse.success(productService.getInventorySummary()));
     }
 }

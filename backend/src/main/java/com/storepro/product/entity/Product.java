@@ -71,13 +71,13 @@ public class Product extends BaseEntity {
     @Column(precision = 8, scale = 2)
     private BigDecimal depth;
 
-    @Column(name = "min_stock", nullable = false)
+    @Column(name = "min_stock", nullable = false, precision = 10, scale = 3)
     @Builder.Default
-    private int minStock = 0;
+    private BigDecimal minStock = BigDecimal.ZERO;
 
-    @Column(name = "current_stock", nullable = false)
+    @Column(name = "current_stock", nullable = false, precision = 10, scale = 3)
     @Builder.Default
-    private int currentStock = 0;
+    private BigDecimal currentStock = BigDecimal.ZERO;
 
     @Column(name = "stock_location", length = 100)
     private String stockLocation;

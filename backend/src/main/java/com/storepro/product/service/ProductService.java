@@ -184,9 +184,88 @@ public class ProductService {
                 .currentStock(p.getCurrentStock())
                 .stockLocation(p.getStockLocation())
                 .active(p.isActive())
-                .lowStock(p.getCurrentStock() <= p.getMinStock())
+                .lowStock(p.getCurrentStock().compareTo(p.getMinStock()) <= 0)
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .build();
+    }
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> getInventorySummary() {
+        List<Product> allProducts = productRepository.findAll();
+        List<Product> activeProducts = allProducts.stream().filter(Product::isActive).toList();
+
+        // Total stock value (cost and sale)
+        java.math.BigDecimal totalCostValue = activeProducts.stream()
+                .map(p -> p.getCostPrice().multiply(p.getCurrentStock()))
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        java.math.BigDecimal totalSaleValue = activeProducts.stream()
+                .map(p -> p.getSalePrice().multiply(p.getCurrentStock()))
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        // Counts
+        long totalActive = activeProducts.size();
+        long lowStock = activeProducts.stream()
+                .filter(p -> p.getCurrentStock().compareTo(p.getMinStock()) <= 0
+                        && p.getCurrentStock().compareTo(java.math.BigDecimal.ZERO) > 0)
+                .count();
+        long outOfStock = activeProducts.stream()
+                .filter(p -> p.getCurrentStock().compareTo(java.math.BigDecimal.ZERO) <= 0)
+                .count();
+        long healthyStock = totalActive - lowStock - outOfStock;
+
+        // Total items in stock
+        java.math.BigDecimal totalItems = activeProducts.stream()
+                .map(Product::getCurrentStock)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        // Top 5 most valuable products by stock value
+        List<java.util.Map<String, Object>> topValueProducts = activeProducts.stream()
+                .sorted((a, b) -> b.getSalePrice().multiply(b.getCurrentStock())
+                        .compareTo(a.getSalePrice().multiply(a.getCurrentStock())))
+                .limit(5)
+                .map(p -> {
+                    java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("name", p.getName());
+                    m.put("currentStock", p.getCurrentStock());
+                    m.put("unit", p.getUnit());
+                    m.put("salePrice", p.getSalePrice());
+                    m.put("stockValue", p.getSalePrice().multiply(p.getCurrentStock()));
+                    return m;
+                })
+                .toList();
+
+        // Category breakdown
+        java.util.Map<String, java.util.Map<String, Object>> categoryMap = new java.util.LinkedHashMap<>();
+        for (Product p : activeProducts) {
+            String catName = p.getCategory() != null ? p.getCategory().getName() : "Sem Categoria";
+            categoryMap.computeIfAbsent(catName, k -> {
+                java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                m.put("name", k);
+                m.put("count", 0L);
+                m.put("stockValue", java.math.BigDecimal.ZERO);
+                return m;
+            });
+            java.util.Map<String, Object> cat = categoryMap.get(catName);
+            cat.put("count", (Long) cat.get("count") + 1);
+            cat.put("stockValue", ((java.math.BigDecimal) cat.get("stockValue"))
+                    .add(p.getSalePrice().multiply(p.getCurrentStock())));
+        }
+        List<java.util.Map<String, Object>> categories = new java.util.ArrayList<>(categoryMap.values());
+        categories.sort((a, b) -> ((java.math.BigDecimal) b.get("stockValue"))
+                .compareTo((java.math.BigDecimal) a.get("stockValue")));
+
+        java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("totalCostValue", totalCostValue);
+        result.put("totalSaleValue", totalSaleValue);
+        result.put("totalActiveProducts", totalActive);
+        result.put("totalItems", totalItems);
+        result.put("healthyStock", healthyStock);
+        result.put("lowStockCount", lowStock);
+        result.put("outOfStockCount", outOfStock);
+        result.put("topValueProducts", topValueProducts);
+        result.put("categories", categories);
+
+        return result;
     }
 }

@@ -22,8 +22,8 @@ public class UpdateProductRequest {
     private BigDecimal width;
     private BigDecimal height;
     private BigDecimal depth;
-    private Integer minStock;
-    private Integer currentStock;
+    private BigDecimal minStock;
+    private BigDecimal currentStock;
     private String stockLocation;
     private Boolean active;
 }

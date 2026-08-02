@@ -33,8 +33,8 @@ public class ProductResponse {
     private BigDecimal width;
     private BigDecimal height;
     private BigDecimal depth;
-    private int minStock;
-    private int currentStock;
+    private BigDecimal minStock;
+    private BigDecimal currentStock;
     private String stockLocation;
     private boolean active;
     private boolean lowStock;

@@ -128,7 +128,7 @@ const ProductsPage: React.FC = () => {
         name: form.name, sku: form.sku || undefined, barcode: form.barcode || undefined,
         brand: form.brand || undefined, unit: form.unit, description: form.description || undefined,
         costPrice: parseFloat(form.costPrice), salePrice: parseFloat(form.salePrice),
-        minStock: parseInt(form.minStock), currentStock: parseInt(form.currentStock),
+        minStock: parseFloat(form.minStock), currentStock: parseFloat(form.currentStock),
         stockLocation: form.stockLocation || undefined,
         categoryId: form.categoryId || undefined,
       };
@@ -387,12 +387,12 @@ const ProductsPage: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <div className="form-group">
                     <label className="form-label">Estoque Mínimo</label>
-                    <input type="number" className="form-input" value={form.minStock}
+                    <input type="number" step="0.001" min="0" className="form-input" value={form.minStock}
                       onChange={(e) => setForm({ ...form, minStock: e.target.value })} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Estoque Atual</label>
-                    <input type="number" className="form-input" value={form.currentStock}
+                    <input type="number" step="0.001" min="0" className="form-input" value={form.currentStock}
                       onChange={(e) => setForm({ ...form, currentStock: e.target.value })} />
                   </div>
                 </div>

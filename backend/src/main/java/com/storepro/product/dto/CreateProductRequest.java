@@ -37,11 +37,11 @@ public class CreateProductRequest {
     private BigDecimal height;
     private BigDecimal depth;
 
-    @Min(value = 0, message = "Estoque mínimo deve ser positivo")
-    private int minStock = 0;
+    @DecimalMin(value = "0.0", message = "Estoque mínimo deve ser positivo")
+    private BigDecimal minStock = BigDecimal.ZERO;
 
-    @Min(value = 0, message = "Estoque atual deve ser positivo")
-    private int currentStock = 0;
+    @DecimalMin(value = "0.0", message = "Estoque atual deve ser positivo")
+    private BigDecimal currentStock = BigDecimal.ZERO;
 
     private String stockLocation;
 }

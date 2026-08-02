@@ -67,7 +67,7 @@ public class PurchaseService {
             totalCost = totalCost.add(itemTotal);
 
             // Increment stock
-            product.setCurrentStock(product.getCurrentStock() + itemReq.getQuantity().intValue());
+            product.setCurrentStock(product.getCurrentStock().add(itemReq.getQuantity()));
             productRepository.save(product);
         }
 
