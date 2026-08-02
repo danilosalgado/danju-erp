@@ -39,6 +39,8 @@ interface LowStockProduct {
 interface DashboardData {
   todayRevenue: number;
   monthRevenue: number;
+  monthCosts: number;
+  netProfit: number;
   todaySales: number;
   monthSales: number;
   averageTicket: number;
@@ -109,6 +111,22 @@ const DashboardPage: React.FC = () => {
       positive: monthPositive,
       icon: TrendingUp,
       color: 'accent',
+    },
+    {
+      label: 'Custos do Mês',
+      value: formatCurrency(d.monthCosts ?? 0),
+      change: 'Despesas e compras',
+      positive: false,
+      icon: ShoppingCart,
+      color: 'warning',
+    },
+    {
+      label: 'Lucro Líquido',
+      value: formatCurrency(d.netProfit ?? 0),
+      change: 'Caixa do mês',
+      positive: (d.netProfit ?? 0) >= 0,
+      icon: DollarSign,
+      color: (d.netProfit ?? 0) >= 0 ? 'primary' : 'warning',
     },
     {
       label: 'Vendas no Mês',

@@ -15,6 +15,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
+import com.storepro.expense.repository.ExpenseRepository;
+import com.storepro.purchase.repository.PurchaseRepository;
+
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
@@ -22,17 +25,26 @@ public class DashboardService {
     private final SaleRepository saleRepository;
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
+    private final ExpenseRepository expenseRepository;
+    private final PurchaseRepository purchaseRepository;
 
     @Transactional(readOnly = true)
     public DashboardData getDashboard() {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         LocalDateTime todayEnd = LocalDate.now().atTime(LocalTime.MAX);
         LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDate monthStartDay = LocalDate.now().withDayOfMonth(1);
+        LocalDate todayDay = LocalDate.now();
 
         BigDecimal todayRevenue = saleRepository.sumTotalByPeriod(todayStart, todayEnd);
         BigDecimal monthRevenue = saleRepository.sumTotalByPeriod(monthStart, todayEnd);
         long todaySales = saleRepository.countByPeriod(todayStart, todayEnd);
         long monthSales = saleRepository.countByPeriod(monthStart, todayEnd);
+        
+        BigDecimal monthExpenses = expenseRepository.sumPaidByPeriod(monthStartDay, todayDay);
+        BigDecimal monthPurchases = purchaseRepository.sumTotalByPeriod(monthStartDay, todayDay);
+        BigDecimal monthCosts = monthExpenses.add(monthPurchases);
+        BigDecimal netProfit = monthRevenue.subtract(monthCosts);
 
         BigDecimal avgTicket = monthSales > 0
                 ? monthRevenue.divide(BigDecimal.valueOf(monthSales), 2, RoundingMode.HALF_UP)
@@ -73,6 +85,8 @@ public class DashboardService {
         return DashboardData.builder()
                 .todayRevenue(todayRevenue)
                 .monthRevenue(monthRevenue)
+                .monthCosts(monthCosts)
+                .netProfit(netProfit)
                 .todaySales(todaySales)
                 .monthSales(monthSales)
                 .averageTicket(avgTicket)

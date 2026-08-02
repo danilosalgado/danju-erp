@@ -16,6 +16,8 @@ public class DashboardData {
 
     private BigDecimal todayRevenue;
     private BigDecimal monthRevenue;
+    private BigDecimal monthCosts;
+    private BigDecimal netProfit;
     private long todaySales;
     private long monthSales;
     private BigDecimal averageTicket;

@@ -17,6 +17,7 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +29,7 @@ public class InvoiceImportService {
 
     private final ProductRepository productRepository;
     private final SupplierRepository supplierRepository;
+    private final PurchaseRepository purchaseRepository;
 
     @Transactional
     public NFeImportResult importNFe(MultipartFile file) {
@@ -62,6 +64,15 @@ public class InvoiceImportService {
                 }
             }
 
+            // Create Purchase record
+            Purchase purchase = Purchase.builder()
+                    .supplier(supplier)
+                    .purchaseDate(LocalDate.now())
+                    .notes("Importação NFe " + (invoiceNumber != null ? invoiceNumber : "Desconhecida"))
+                    .items(new ArrayList<>())
+                    .totalCost(totalValue)
+                    .build();
+
             // Process products (det elements)
             NodeList detList = doc.getElementsByTagNameNS(ns, "det");
             List<NFeImportResult.NFeProduct> products = new ArrayList<>();
@@ -73,7 +84,7 @@ public class InvoiceImportService {
                 if (prod == null) continue;
 
                 try {
-                    NFeImportResult.NFeProduct result = processProduct(prod, ns, supplier);
+                    NFeImportResult.NFeProduct result = processProduct(prod, ns, supplier, purchase);
                     products.add(result);
                     switch (result.getStatus()) {
                         case "CREATED" -> created++;
@@ -89,6 +100,11 @@ public class InvoiceImportService {
                             .message(e.getMessage())
                             .build());
                 }
+            }
+
+            if (!purchase.getItems().isEmpty()) {
+                purchaseRepository.save(purchase);
+                log.info("Compra criada a partir da NFe com {} itens e valor {}", purchase.getItems().size(), totalValue);
             }
 
             log.info("NF-e {} imported: {} created, {} updated, {} errors",
@@ -138,6 +154,7 @@ public class InvoiceImportService {
 
         String status;
         String message;
+        Product savedProduct;
 
         if (existing.isPresent()) {
             // Update existing product
@@ -145,7 +162,7 @@ public class InvoiceImportService {
             product.setCostPrice(unitPrice);
             product.setCurrentStock(product.getCurrentStock().add(quantity));
             if (supplier != null) product.setSupplier(supplier);
-            productRepository.save(product);
+            savedProduct = productRepository.save(product);
             status = "UPDATED";
             message = "Estoque atualizado: +" + quantity + " unidades";
         } else {
@@ -170,10 +187,21 @@ public class InvoiceImportService {
                     .active(true)
                     .build();
             product.setCreatedBy("NF-e Import");
-            productRepository.save(product);
+            savedProduct = productRepository.save(product);
             status = "CREATED";
             message = "Produto criado com margem de 30%";
         }
+
+        // Add to purchase
+        PurchaseItem purchaseItem = PurchaseItem.builder()
+                .purchase(purchase)
+                .product(savedProduct)
+                .productName(name != null ? name : "Produto s/ nome")
+                .quantity(quantity)
+                .unitCost(unitPrice)
+                .totalCost(totalPrice)
+                .build();
+        purchase.getItems().add(purchaseItem);
 
         return NFeImportResult.NFeProduct.builder()
                 .code(code)

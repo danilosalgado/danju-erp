@@ -29,4 +29,8 @@ public interface PurchaseRepository extends JpaRepository<Purchase, UUID> {
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
             Pageable pageable);
+
+    @Query("SELECT COALESCE(SUM(p.totalCost), 0) FROM Purchase p WHERE " +
+           "p.purchaseDate >= :startDate AND p.purchaseDate <= :endDate")
+    java.math.BigDecimal sumTotalByPeriod(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 }
