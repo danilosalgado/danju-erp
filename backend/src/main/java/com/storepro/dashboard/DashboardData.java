@@ -46,8 +46,8 @@ public class DashboardData {
     public static class LowStockProduct {
         private String name;
         private String sku;
-        private int currentStock;
-        private int minStock;
+        private BigDecimal currentStock;
+        private BigDecimal minStock;
     }
 
     @Data
