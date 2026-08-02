@@ -131,7 +131,7 @@ public class InvoiceImportService {
         }
     }
 
-    private NFeImportResult.NFeProduct processProduct(Element prod, String ns, Supplier supplier) {
+    private NFeImportResult.NFeProduct processProduct(Element prod, String ns, Supplier supplier, Purchase purchase) {
         String code = getTagValue(prod, ns, "cProd");
         String barcode = getTagValue(prod, ns, "cEAN");
         String name = getTagValue(prod, ns, "xProd");
