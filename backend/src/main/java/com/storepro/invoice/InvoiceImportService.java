@@ -121,7 +121,7 @@ public class InvoiceImportService {
         String vUnComStr = getTagValue(prod, ns, "vUnCom");
         String vProdStr = getTagValue(prod, ns, "vProd");
 
-        int quantity = qComStr != null ? (int) Double.parseDouble(qComStr) : 0;
+        BigDecimal quantity = qComStr != null ? new BigDecimal(qComStr) : BigDecimal.ZERO;
         BigDecimal unitPrice = vUnComStr != null ? new BigDecimal(vUnComStr) : BigDecimal.ZERO;
         BigDecimal totalPrice = vProdStr != null ? new BigDecimal(vProdStr) : BigDecimal.ZERO;
 
@@ -143,7 +143,7 @@ public class InvoiceImportService {
             // Update existing product
             Product product = existing.get();
             product.setCostPrice(unitPrice);
-            product.setCurrentStock(product.getCurrentStock() + quantity);
+            product.setCurrentStock(product.getCurrentStock().add(quantity));
             if (supplier != null) product.setSupplier(supplier);
             productRepository.save(product);
             status = "UPDATED";

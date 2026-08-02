@@ -33,7 +33,7 @@ public class NFeImportResult {
         private String name;
         private String ncm;
         private String unit;
-        private int quantity;
+        private BigDecimal quantity;
         private BigDecimal unitPrice;
         private BigDecimal totalPrice;
         private String status; // CREATED, UPDATED, ERROR

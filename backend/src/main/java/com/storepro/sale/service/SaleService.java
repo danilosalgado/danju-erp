@@ -66,9 +66,9 @@ public class SaleService {
             Product product = productRepository.findById(itemReq.getProductId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produto", "id", itemReq.getProductId()));
 
-            if (product.getCurrentStock() < itemReq.getQuantity().intValue()) {
+            if (product.getCurrentStock().compareTo(itemReq.getQuantity()) < 0) {
                 throw new BusinessException(
-                        String.format("Estoque insuficiente para '%s'. Disponível: %d",
+                        String.format("Estoque insuficiente para '%s'. Disponível: %s",
                                 product.getName(), product.getCurrentStock()),
                         HttpStatus.BAD_REQUEST);
             }
@@ -93,7 +93,7 @@ public class SaleService {
             subtotal = subtotal.add(itemTotal);
 
             // Decrease stock (round up for fractional units)
-            product.setCurrentStock(product.getCurrentStock() - itemReq.getQuantity().intValue());
+            product.setCurrentStock(product.getCurrentStock().subtract(itemReq.getQuantity()));
             productRepository.save(product);
         }
 
@@ -185,7 +185,7 @@ public class SaleService {
         for (SaleItem item : sale.getItems()) {
             if (!item.isCancelled()) {
                 Product product = item.getProduct();
-                product.setCurrentStock(product.getCurrentStock() + item.getQuantity().intValue());
+                product.setCurrentStock(product.getCurrentStock().add(item.getQuantity()));
                 productRepository.save(product);
             }
         }
@@ -208,7 +208,7 @@ public class SaleService {
         for (SaleItem item : sale.getItems()) {
             if (!item.isCancelled()) {
                 Product product = item.getProduct();
-                product.setCurrentStock(product.getCurrentStock() + item.getQuantity().intValue());
+                product.setCurrentStock(product.getCurrentStock().add(item.getQuantity()));
                 productRepository.save(product);
             }
         }
@@ -223,9 +223,9 @@ public class SaleService {
             Product product = productRepository.findById(itemReq.getProductId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produto", "id", itemReq.getProductId()));
 
-            if (product.getCurrentStock() < itemReq.getQuantity().intValue()) {
+            if (product.getCurrentStock().compareTo(itemReq.getQuantity()) < 0) {
                 throw new BusinessException(
-                        String.format("Estoque insuficiente para '%s'. Disponível: %d",
+                        String.format("Estoque insuficiente para '%s'. Disponível: %s",
                                 product.getName(), product.getCurrentStock()),
                         HttpStatus.BAD_REQUEST);
             }
@@ -249,7 +249,7 @@ public class SaleService {
             sale.getItems().add(item);
             subtotal = subtotal.add(itemTotal);
 
-            product.setCurrentStock(product.getCurrentStock() - itemReq.getQuantity().intValue());
+            product.setCurrentStock(product.getCurrentStock().subtract(itemReq.getQuantity()));
             productRepository.save(product);
         }
 
