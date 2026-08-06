@@ -26,11 +26,23 @@ interface CartItem {
 interface SaleResult {
   id: string;
   saleNumber: number;
+  customerName: string | null;
+  userName: string | null;
+  subtotal: number;
+  discountAmount: number;
+  surcharge: number;
   total: number;
-  items: { productName: string; quantity: number; unitPrice: number; totalPrice: number }[];
+  items: { productName: string; productSku: string | null; quantity: number; unit: string; unitPrice: number; totalPrice: number }[];
   payments: { method: string; amount: number; changeAmount: number }[];
   createdAt: string;
 }
+
+const STORE_INFO = {
+  name: 'DanJu Pescados & Empório',
+  phone: '(79) 99649-4745',
+  address: 'R. Cel. José F de Albuquerque, 2360 - Atalaia, Aracaju - SE, 49035-190',
+  cnpj: '63.387.222/0001-29',
+};
 
 interface PaymentEntry {
   method: string;
@@ -43,6 +55,13 @@ const PAYMENT_METHODS = [
   { key: 'CARTAO_DEBITO', label: 'Débito', icon: CreditCard, color: '#06b6d4' },
   { key: 'PIX', label: 'PIX', icon: Smartphone, color: '#8b5cf6' },
 ];
+
+const methodLabels: Record<string, string> = {
+  DINHEIRO: 'Dinheiro',
+  CARTAO_CREDITO: 'Cartão de Crédito',
+  CARTAO_DEBITO: 'Cartão de Débito',
+  PIX: 'PIX',
+};
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -180,60 +199,113 @@ const PDVPage: React.FC = () => {
     window.print();
   };
 
-  const formatBrasiliaDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-  };
+  const formatBrasiliaDateOnly = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
   // Receipt Modal
   if (receipt) {
+    const totalPaid = receipt.payments.reduce((sum, p) => sum + p.amount, 0);
+    const totalChange = receipt.payments.reduce((sum, p) => sum + (p.changeAmount || 0), 0);
+    const paymentLabel = receipt.payments.map(p => methodLabels[p.method] || p.method.replace(/_/g, ' ')).join(' + ');
+    const now = new Date();
+
     return (
-      <div className="card" style={{ maxWidth: 500, margin: '0 auto', padding: 32 }} id="receipt">
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 28 }}>🐟</div>
-          <h2 style={{ margin: '8px 0 4px' }}>DanJu Pescados & Empório</h2>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Comprovante de Venda</p>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-            Venda #{receipt.saleNumber ?? '—'} — {formatBrasiliaDate(receipt.createdAt)}
+      <div>
+        <div className="receipt" id="receipt">
+          <div className="receipt-center">
+            <img src="/logo.png" alt="" className="receipt-logo" />
+            <div className="receipt-store-name">{STORE_INFO.name}</div>
+            <div className="receipt-muted">Fone: {STORE_INFO.phone}</div>
+            <div className="receipt-muted">{STORE_INFO.address}</div>
+            <div className="receipt-muted">CNPJ: {STORE_INFO.cnpj}</div>
           </div>
-        </div>
-        <hr style={{ border: 'none', borderTop: '1px dashed var(--border-glass)', margin: '16px 0' }} />
-        <table style={{ width: '100%', fontSize: 13 }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left', paddingBottom: 8 }}>Item</th>
-              <th style={{ textAlign: 'center', paddingBottom: 8 }}>Qtd</th>
-              <th style={{ textAlign: 'right', paddingBottom: 8 }}>Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {receipt.items.map((item, i) => (
-              <tr key={i}>
-                <td style={{ padding: '4px 0' }}>{item.productName}</td>
-                <td style={{ textAlign: 'center' }}>{item.quantity}</td>
-                <td style={{ textAlign: 'right' }}>{formatCurrency(item.totalPrice)}</td>
+          <hr className="receipt-divider" />
+          <div className="receipt-line receipt-muted">
+            <span>Emissão: {formatBrasiliaDateOnly(receipt.createdAt)}</span>
+            <span>Venda: {formatBrasiliaDateOnly(receipt.createdAt)}</span>
+          </div>
+          <div className="receipt-line receipt-muted">
+            <span>Impressão: {now.toLocaleString('pt-BR')}</span>
+          </div>
+          <div className="receipt-line" style={{ fontWeight: 700, marginTop: 4 }}>
+            <span>PEDIDO N.: {receipt.saleNumber ?? '—'}</span>
+          </div>
+          <hr className="receipt-divider" />
+
+          <table className="receipt-table">
+            <thead>
+              <tr>
+                <th style={{ width: 50 }}>Cod.</th>
+                <th>Descrição</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        <hr style={{ border: 'none', borderTop: '1px dashed var(--border-glass)', margin: '16px 0' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 700 }}>
-          <span>TOTAL</span>
-          <span style={{ color: 'var(--accent-400)' }}>{formatCurrency(receipt.total)}</span>
+            </thead>
+            <tbody>
+              {receipt.items.map((item, i) => (
+                <React.Fragment key={i}>
+                  <tr>
+                    <td className="receipt-item-desc">{item.productSku || '—'}</td>
+                    <td className="receipt-item-desc">{item.productName}</td>
+                  </tr>
+                  <tr>
+                    <td className="receipt-item-detail">{item.unit}</td>
+                    <td className="receipt-item-detail">
+                      {item.quantity} × {formatCurrency(item.unitPrice)} = {formatCurrency(item.totalPrice)}
+                    </td>
+                  </tr>
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+          <hr className="receipt-divider" />
+
+          <div className="receipt-line" style={{ fontWeight: 700 }}>
+            <span>Forma</span>
+            <span>Valor</span>
+          </div>
+          <div className="receipt-line">
+            <span>{paymentLabel}</span>
+            <span>{formatCurrency(totalPaid)}</span>
+          </div>
+          <hr className="receipt-divider" />
+
+          <div className="receipt-totals-row">
+            <span>Sub Total:</span>
+            <span>{formatCurrency(receipt.subtotal)}</span>
+          </div>
+          <div className="receipt-totals-row">
+            <span>Desconto/Acréscimo:</span>
+            <span>{formatCurrency((receipt.surcharge || 0) - (receipt.discountAmount || 0))}</span>
+          </div>
+          <div className="receipt-totals-row grand">
+            <span>TOTAL GERAL:</span>
+            <span>{formatCurrency(receipt.total)}</span>
+          </div>
+          <div className="receipt-totals-row">
+            <span>Total Pago:</span>
+            <span>{formatCurrency(totalPaid)}</span>
+          </div>
+          {totalChange > 0 && (
+            <div className="receipt-totals-row">
+              <span>Troco:</span>
+              <span>{formatCurrency(totalChange)}</span>
+            </div>
+          )}
+
+          <hr className="receipt-divider" />
+          <div className="receipt-line receipt-muted">
+            <span>Vendedor:</span>
+            <span>{receipt.userName || '—'}</span>
+          </div>
+          <div className="receipt-line receipt-muted">
+            <span>Cliente:</span>
+            <span>{receipt.customerName || 'Consumidor'}</span>
+          </div>
+
+          <div className="receipt-signature">Ass: ___________________________</div>
+          <div className="receipt-disclaimer">NÃO É DOCUMENTO FISCAL</div>
         </div>
-        {receipt.payments.map((p, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>
-            <span>{p.method.replace(/_/g, ' ')}</span>
-            <span>{formatCurrency(p.amount)}</span>
-          </div>
-        ))}
-        {receipt.payments.some(p => p.changeAmount > 0) && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, color: '#06b6d4', marginTop: 8 }}>
-            <span>TROCO</span>
-            <span>{formatCurrency(receipt.payments.reduce((sum, p) => sum + (p.changeAmount || 0), 0))}</span>
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+
+        <div className="receipt-actions" style={{ display: 'flex', gap: 12, marginTop: 20, maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
           <button className="btn btn-primary" style={{ flex: 1 }} onClick={printReceipt}>
             <Printer size={16} /> Imprimir
           </button>
@@ -254,7 +326,7 @@ const PDVPage: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 20, minHeight: '70vh' }}>
+      <div className="split-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 20, minHeight: '70vh' }}>
         {/* Left: Product search + results */}
         <div>
           <div className="card" style={{ marginBottom: 16 }}>
@@ -346,7 +418,7 @@ const PDVPage: React.FC = () => {
         </div>
 
         {/* Right: Cart */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', height: 'fit-content', position: 'sticky', top: 20 }}>
+        <div className="card pdv-cart-panel" style={{ display: 'flex', flexDirection: 'column', height: 'fit-content', position: 'sticky', top: 20 }}>
           <div className="card-header">
             <h3 className="card-title"><ShoppingCart size={18} /> Carrinho</h3>
             <span className="badge badge-info">{cart.length} itens</span>
@@ -490,9 +562,9 @@ const PDVPage: React.FC = () => {
       {showPayment && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16,
         }}>
-          <div className="card" style={{ width: 500, padding: 32, maxHeight: '90vh', overflow: 'auto' }}>
+          <div className="card" style={{ width: '100%', maxWidth: 500, padding: 32, maxHeight: '90vh', overflow: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2>Pagamento</h2>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowPayment(false)}><X size={20} /></button>

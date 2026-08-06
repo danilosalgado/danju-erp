@@ -6,6 +6,20 @@ import api from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import type { ApiResponse, LoginResponse } from '../../types';
 
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 6) return 'Trabalhando até tarde? Entre para fechar o caixa.';
+  if (hour < 12) return 'Bom dia! Entre para abrir o caixa.';
+  if (hour < 18) return 'Boa tarde! Entre para continuar as vendas.';
+  return 'Boa noite! Entre para fechar o caixa do dia.';
+};
+
+const todayLabel = new Date().toLocaleDateString('pt-BR', {
+  weekday: 'long',
+  day: '2-digit',
+  month: 'long',
+});
+
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
@@ -13,6 +27,7 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [greeting] = useState(getGreeting);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +48,8 @@ const LoginPage: React.FC = () => {
         email: data.email,
         role: data.role,
       });
-      toast.success('Bem-vindo(a)!');
+      const firstName = data.name?.split(' ')[0];
+      toast.success(firstName ? `Bem-vindo(a) de volta, ${firstName}!` : 'Bem-vindo(a) de volta!');
       navigate('/');
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Erro ao fazer login';
@@ -48,9 +64,12 @@ const LoginPage: React.FC = () => {
       <div className="login-card">
         <div className="login-logo">
           <div className="login-logo-icon">🐟</div>
-          <span className="login-logo-text">DanJu</span>
+          <div>
+            <div className="login-logo-text">DanJu Pescados & Empório</div>
+            <p className="login-date">{todayLabel}</p>
+          </div>
         </div>
-        <p className="login-subtitle">Pescados & Empório — Sistema de Gestão</p>
+        <p className="login-subtitle">{greeting}</p>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">

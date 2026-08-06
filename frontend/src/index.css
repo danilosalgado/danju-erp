@@ -171,6 +171,7 @@ input, select, textarea {
 
 .app-main {
   flex: 1;
+  min-width: 0;
   margin-left: var(--sidebar-width);
   transition: margin-left var(--transition-base);
   min-height: 100vh;
@@ -199,9 +200,25 @@ input, select, textarea {
   border-right: 1px solid var(--border-glass);
   display: flex;
   flex-direction: column;
-  transition: width var(--transition-base);
+  transition: width var(--transition-base), transform var(--transition-base);
   z-index: 100;
   overflow: hidden;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 640px) {
+  .filter-actions {
+    margin-left: auto;
+  }
 }
 
 .sidebar.collapsed {
@@ -387,6 +404,10 @@ input, select, textarea {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.mobile-menu-btn {
+  display: none;
 }
 
 .header-title {
@@ -955,76 +976,64 @@ tr:last-child td {
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(ellipse 1200px 900px at 50% 30%, rgba(6, 182, 212, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 800px 600px at 20% 80%, rgba(251, 191, 36, 0.04) 0%, transparent 60%),
-    radial-gradient(ellipse 600px 400px at 80% 70%, rgba(6, 182, 212, 0.03) 0%, transparent 60%),
+    radial-gradient(ellipse 900px 700px at 15% 10%, rgba(6, 182, 212, 0.05) 0%, transparent 65%),
     var(--bg-primary);
   padding: 20px;
 }
 
 .login-card {
   width: 100%;
-  max-width: 440px;
+  max-width: 420px;
   background: rgba(10, 20, 14, 0.9);
-  border: 1px solid rgba(6, 182, 212, 0.12);
+  border: 1px solid var(--border-secondary);
   border-radius: var(--radius-xl);
-  padding: 44px 40px;
-  backdrop-filter: blur(24px);
-  box-shadow: var(--shadow-xl), 0 0 60px rgba(6, 182, 212, 0.06);
+  padding: 40px 36px;
+  box-shadow: var(--shadow-xl);
   animation: loginAppear var(--transition-slow) ease-out;
   position: relative;
-  overflow: hidden;
-}
-
-.login-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--primary-500), var(--accent-500), transparent);
 }
 
 .login-logo {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 14px;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
 }
 
 .login-logo-icon {
-  width: 56px;
-  height: 56px;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
   background: linear-gradient(145deg, #0c4a6e, #082f49);
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 28px;
-  color: white;
-  box-shadow: 0 4px 24px rgba(6, 182, 212, 0.25), inset 0 1px 0 rgba(255,255,255,0.1);
-  border: 1px solid rgba(6, 182, 212, 0.2);
+  font-size: 24px;
+  border: 1px solid var(--border-primary);
 }
 
 .login-logo-text {
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #67e8f9, #22d3ee, #fbbf24);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+}
+
+.login-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+  margin-top: 1px;
 }
 
 .login-subtitle {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 14px;
-  margin-bottom: 36px;
-  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+  font-size: 14.5px;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-glass);
 }
 
 .login-btn {
@@ -1142,10 +1151,25 @@ tr:last-child td {
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
+    width: min(80vw, var(--sidebar-width));
   }
 
   .sidebar.mobile-open {
     transform: translateX(0);
+    box-shadow: var(--shadow-xl);
+  }
+
+  .sidebar-backdrop.visible {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 99;
+    animation: fadeIn var(--transition-fast) ease-out;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
   }
 
   .app-main,
@@ -1154,8 +1178,20 @@ tr:last-child td {
     left: 0 !important;
   }
 
+  .header {
+    padding: 0 16px;
+  }
+
+  .header-user-info {
+    display: none;
+  }
+
   .page-content {
     padding: 16px;
+  }
+
+  .page-header h1 {
+    font-size: 20px;
   }
 
   .stats-grid {
@@ -1169,6 +1205,51 @@ tr:last-child td {
 
   .table-search {
     min-width: auto;
+  }
+
+  .table-container {
+    overflow-x: auto;
+  }
+
+  .table-container table {
+    min-width: 640px;
+  }
+
+  .modal-overlay {
+    padding: 12px;
+    align-items: flex-end;
+  }
+
+  .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92vh;
+  }
+
+  .split-2col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .pdv-cart-panel {
+    position: static !important;
+    top: auto !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 28px 22px;
+  }
+
+  .modal-body,
+  .modal-footer,
+  .modal-header {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .receipt {
+    max-width: 100%;
   }
 }
 
@@ -1205,4 +1286,79 @@ tr:last-child td {
     border: 1px solid #ddd !important;
     box-shadow: none !important;
   }
+}
+
+/* === Receipt / Comprovante (non-fiscal, thermal-style) === */
+.receipt {
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+  background: #fff;
+  color: #111;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  padding: 18px 14px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+}
+
+.receipt-center { text-align: center; }
+.receipt-logo { display: block; width: 72px; height: 72px; object-fit: contain; margin: 0 auto 4px; }
+.receipt-store-name { font-size: 14px; font-weight: 700; text-transform: uppercase; }
+.receipt-line { display: flex; justify-content: space-between; gap: 8px; }
+.receipt-muted { color: #555; }
+
+.receipt-divider {
+  border: none;
+  border-top: 1px dashed #999;
+  margin: 8px 0;
+}
+
+.receipt-table { width: 100%; border-collapse: collapse; }
+.receipt-table thead { background: none; }
+.receipt-table th {
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 700;
+  font-size: 10.5px;
+  color: #111;
+  padding: 0 0 4px;
+  border-bottom: 1px dashed #999;
+}
+.receipt-table td { padding: 0; font-size: 11.5px; border-bottom: none; }
+.receipt-table tr:hover td { background: none; }
+.receipt-table td.receipt-item-desc { padding-top: 6px; font-weight: 600; }
+.receipt-table td.receipt-item-detail { color: #444; font-size: 10.5px; padding-bottom: 2px; }
+
+.receipt-totals-row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; }
+.receipt-totals-row.grand { font-weight: 700; font-size: 13.5px; padding-top: 6px; }
+
+.receipt-signature {
+  margin-top: 22px;
+  border-top: 1px solid #333;
+  padding-top: 4px;
+  text-align: center;
+  font-size: 10.5px;
+  color: #444;
+}
+
+.receipt-disclaimer {
+  margin-top: 14px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+}
+
+@media print {
+  .receipt {
+    max-width: 80mm;
+    width: 80mm;
+    box-shadow: none !important;
+    padding: 4mm;
+    font-size: 11px;
+  }
+  .receipt-actions { display: none !important; }
 }
