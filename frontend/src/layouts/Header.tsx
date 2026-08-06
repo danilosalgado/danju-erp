@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Settings, User } from 'lucide-react';
+import { Bell, LogOut, Menu, Settings, User } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { ROLE_LABELS } from '../types';
 import toast from 'react-hot-toast';
@@ -8,9 +8,10 @@ import toast from 'react-hot-toast';
 interface HeaderProps {
   collapsed: boolean;
   title?: string;
+  onMenuClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ collapsed, title }) => {
+const Header: React.FC<HeaderProps> = ({ collapsed, title, onMenuClick }) => {
   const navigate = useNavigate();
   const { name, email, role, logout } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -39,6 +40,9 @@ const Header: React.FC<HeaderProps> = ({ collapsed, title }) => {
   return (
     <header className={`header ${collapsed ? 'collapsed' : ''}`}>
       <div className="header-left">
+        <button className="btn btn-ghost btn-icon mobile-menu-btn" onClick={onMenuClick} title="Abrir menu">
+          <Menu size={22} />
+        </button>
         {title && <h2 className="header-title">{title}</h2>}
       </div>
 

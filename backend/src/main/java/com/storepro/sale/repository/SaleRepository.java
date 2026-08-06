@@ -40,4 +40,32 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
            "AND s.created_at >= :start AND s.created_at <= :end " +
            "GROUP BY CAST(s.created_at AS DATE) ORDER BY sale_date", nativeQuery = true)
     java.util.List<Object[]> findDailySales(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT COALESCE(SUM(s.discountAmount), 0) FROM Sale s WHERE s.status = 'FINALIZADA' " +
+           "AND s.createdAt >= :start AND s.createdAt <= :end")
+    BigDecimal sumDiscountByPeriod(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT COUNT(s) FROM Sale s WHERE s.status = 'CANCELADA' " +
+           "AND s.createdAt >= :start AND s.createdAt <= :end")
+    long countCancelledByPeriod(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query(value = "SELECT u.id, u.name, COALESCE(SUM(s.total), 0) as revenue, COUNT(s.id) as sale_count " +
+           "FROM sales s JOIN users u ON u.id = s.user_id " +
+           "WHERE s.status = 'FINALIZADA' AND s.created_at >= :start AND s.created_at <= :end " +
+           "GROUP BY u.id, u.name ORDER BY revenue DESC", nativeQuery = true)
+    java.util.List<Object[]> findRevenueByOperator(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query(value = "SELECT sp.method, COALESCE(SUM(sp.amount), 0) as total, COUNT(DISTINCT sp.sale_id) as cnt " +
+           "FROM sale_payments sp JOIN sales s ON s.id = sp.sale_id " +
+           "WHERE s.status = 'FINALIZADA' AND s.created_at >= :start AND s.created_at <= :end " +
+           "GROUP BY sp.method ORDER BY total DESC", nativeQuery = true)
+    java.util.List<Object[]> findRevenueByPaymentMethod(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query(value = "SELECT si.product_id, si.product_name, COALESCE(SUM(si.quantity), 0) as qty, " +
+           "COALESCE(SUM(si.total_price), 0) as revenue " +
+           "FROM sale_items si JOIN sales s ON s.id = si.sale_id " +
+           "WHERE s.status = 'FINALIZADA' AND si.cancelled = false " +
+           "AND s.created_at >= :start AND s.created_at <= :end " +
+           "GROUP BY si.product_id, si.product_name ORDER BY revenue DESC LIMIT :limit", nativeQuery = true)
+    java.util.List<Object[]> findTopProducts(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end, @Param("limit") int limit);
 }

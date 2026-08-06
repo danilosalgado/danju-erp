@@ -181,7 +181,7 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* Charts Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, marginBottom: 20 }}>
+      <div className="split-2col" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, marginBottom: 20 }}>
         {/* Revenue Chart */}
         <div className="card">
           <div className="card-header">

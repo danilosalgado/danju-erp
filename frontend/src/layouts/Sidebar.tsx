@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import React from 'react';
+import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -21,6 +21,8 @@ import {
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 const navItems = [
@@ -65,11 +67,9 @@ const navItems = [
   },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
-  const location = useLocation();
-
+const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen, onCloseMobile }) => {
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-header">
         <div className="sidebar-logo">🐟</div>
         <span className="sidebar-brand">DanJu</span>
@@ -87,6 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                   `nav-item ${isActive ? 'active' : ''}`
                 }
                 end={item.to === '/'}
+                onClick={onCloseMobile}
               >
                 <item.icon size={20} />
                 <span>{item.label}</span>

@@ -342,6 +342,7 @@ public class SaleService {
                                 .id(i.getId())
                                 .productId(i.getProduct().getId())
                                 .productName(i.getProductName())
+                                .productSku(i.getProduct().getSku())
                                 .quantity(i.getQuantity())
                                 .unit(i.getUnit())
                                 .unitPrice(i.getUnitPrice())
