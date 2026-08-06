@@ -16,5 +16,6 @@ public class ProductStat {
     private UUID productId;
     private String productName;
     private BigDecimal quantitySold;
+    private String unit;
     private BigDecimal revenue;
 }

@@ -86,6 +86,7 @@ public class ReportService {
                         .productName((String) row[1])
                         .quantitySold((BigDecimal) row[2])
                         .revenue((BigDecimal) row[3])
+                        .unit((String) row[4])
                         .build())
                 .toList();
     }

@@ -25,7 +25,7 @@ interface OperatorStat {
   userId: string; userName: string; salesCount: number; revenue: number; averageTicket: number;
 }
 interface ProductStat {
-  productId: string; productName: string; quantitySold: number; revenue: number;
+  productId: string; productName: string; quantitySold: number; unit: string; revenue: number;
 }
 interface SaleListItem {
   id: string; saleNumber: number; customerName: string | null; userName: string | null;
@@ -48,6 +48,12 @@ const methodLabels: Record<string, string> = {
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value ?? 0);
+
+const formatQty = (qty: number, unit: string) => {
+  const isWhole = unit === 'UN' || unit === 'CX';
+  const formatted = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: isWhole ? 0 : 3 }).format(qty);
+  return `${formatted} ${(unit || 'un').toLowerCase()}`;
+};
 
 const formatDate = (dateStr: string) => {
   const d = new Date(dateStr + 'T00:00:00');
@@ -465,7 +471,7 @@ const ReportsPage: React.FC = () => {
                   <tr key={p.productId}>
                     <td style={{ color: 'var(--text-muted)' }}>{i + 1}</td>
                     <td style={{ fontWeight: 500 }}>{p.productName}</td>
-                    <td style={{ textAlign: 'right' }}>{p.quantitySold}</td>
+                    <td style={{ textAlign: 'right' }}>{formatQty(p.quantitySold, p.unit)}</td>
                     <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--accent-400)' }}>{formatCurrency(p.revenue)}</td>
                     <td>
                       <div style={{ height: 6, background: 'var(--bg-tertiary)', borderRadius: 4, overflow: 'hidden' }}>
