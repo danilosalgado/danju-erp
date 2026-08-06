@@ -62,7 +62,7 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
     java.util.List<Object[]> findRevenueByPaymentMethod(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query(value = "SELECT si.product_id, si.product_name, COALESCE(SUM(si.quantity), 0) as qty, " +
-           "COALESCE(SUM(si.total_price), 0) as revenue " +
+           "COALESCE(SUM(si.total_price), 0) as revenue, MAX(si.unit) as unit " +
            "FROM sale_items si JOIN sales s ON s.id = si.sale_id " +
            "WHERE s.status = 'FINALIZADA' AND si.cancelled = false " +
            "AND s.created_at >= :start AND s.created_at <= :end " +
