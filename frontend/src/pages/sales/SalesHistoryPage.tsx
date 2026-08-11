@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Search, Edit2, X, Check, Trash2, Eye, Receipt, ChevronLeft, ChevronRight,
+  Search, Edit2, X, Check, Trash2, Eye, Receipt, Printer, ChevronLeft, ChevronRight,
   Calendar, Ban, Filter,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import type { ApiResponse, PageResponse } from '../../types';
+import SaleReceipt from '../../components/SaleReceipt';
 
 interface SaleItem {
   id: string;
   productId: string;
   productName: string;
+  productSku: string | null;
   quantity: number;
   unit: string;
   unitPrice: number;
@@ -34,6 +36,8 @@ interface Sale {
   customerName: string | null;
   userName: string | null;
   subtotal: number;
+  discountAmount: number;
+  surcharge: number;
   total: number;
   status: string;
   notes: string | null;
@@ -65,6 +69,7 @@ const SalesHistoryPage: React.FC = () => {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -97,6 +102,23 @@ const SalesHistoryPage: React.FC = () => {
       toast.error(err.response?.data?.message || 'Erro ao cancelar');
     }
   };
+
+  // Receipt view — replaces the whole page so printing only outputs the receipt
+  if (receiptSale) {
+    return (
+      <div>
+        <SaleReceipt sale={receiptSale} />
+        <div className="receipt-actions" style={{ display: 'flex', gap: 12, marginTop: 20, maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
+          <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => window.print()}>
+            <Printer size={16} /> Imprimir
+          </button>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setReceiptSale(null)}>
+            Voltar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -188,6 +210,8 @@ const SalesHistoryPage: React.FC = () => {
                       <div className="flex gap-1" style={{ justifyContent: 'flex-end' }}>
                         <button className="btn btn-ghost btn-sm" onClick={() => setSelectedSale(s)}
                           title="Ver detalhes"><Eye size={15} /></button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setReceiptSale(s)}
+                          title="Gerar comprovante"><Printer size={15} /></button>
                         {s.status !== 'CANCELADA' && (
                           <button className="btn btn-ghost btn-sm" onClick={() => handleCancel(s)}
                             title="Cancelar venda" style={{ color: 'var(--danger-400)' }}><Ban size={15} /></button>
@@ -288,6 +312,9 @@ const SalesHistoryPage: React.FC = () => {
                   <Ban size={16} /> Cancelar Venda
                 </button>
               )}
+              <button className="btn btn-secondary" onClick={() => setReceiptSale(selectedSale)}>
+                <Printer size={16} /> Comprovante
+              </button>
               <button className="btn btn-secondary" onClick={() => setSelectedSale(null)}>Fechar</button>
             </div>
           </div>
