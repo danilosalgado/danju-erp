@@ -65,6 +65,7 @@ const methodLabels: Record<string, string> = {
 const SalesHistoryPage: React.FC = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [total, setTotal] = useState(0);
+  const [sumTotal, setSumTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -74,14 +75,18 @@ const SalesHistoryPage: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
+  const filterParams = () => {
+    const params: any = {};
+    if (statusFilter) params.status = statusFilter;
+    if (startDate) params.startDate = new Date(startDate).toISOString();
+    if (endDate) params.endDate = new Date(endDate + 'T23:59:59').toISOString();
+    return params;
+  };
+
   const fetchSales = async () => {
     setLoading(true);
     try {
-      const params: any = { page, size: 15 };
-      if (statusFilter) params.status = statusFilter;
-      if (startDate) params.startDate = new Date(startDate).toISOString();
-      if (endDate) params.endDate = new Date(endDate + 'T23:59:59').toISOString();
-      const res = await api.get<ApiResponse<PageResponse<Sale>>>('/sales', { params });
+      const res = await api.get<ApiResponse<PageResponse<Sale>>>('/sales', { params: { ...filterParams(), page, size: 15 } });
       setSales(res.data.data.content);
       setTotal(res.data.data.totalElements);
       setTotalPages(res.data.data.totalPages);
@@ -89,7 +94,15 @@ const SalesHistoryPage: React.FC = () => {
     finally { setLoading(false); }
   };
 
+  const fetchSumTotal = async () => {
+    try {
+      const res = await api.get<ApiResponse<number>>('/sales/summary', { params: filterParams() });
+      setSumTotal(res.data.data);
+    } catch { /* silent — the list itself already reports the error */ }
+  };
+
   useEffect(() => { fetchSales(); }, [page, statusFilter, startDate, endDate]);
+  useEffect(() => { fetchSumTotal(); }, [statusFilter, startDate, endDate]);
 
   const handleCancel = async (sale: Sale) => {
     if (!confirm(`Cancelar venda #${sale.saleNumber}? O estoque será restaurado.`)) return;
@@ -156,6 +169,15 @@ const SalesHistoryPage: React.FC = () => {
               <X size={16} /> Limpar
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div className="card" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px' }}>
+        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{total} venda{total === 1 ? '' : 's'} encontrada{total === 1 ? '' : 's'}</span>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Total</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent-400)' }}>{formatCurrency(sumTotal)}</div>
         </div>
       </div>
 

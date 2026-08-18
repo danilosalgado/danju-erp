@@ -441,6 +441,46 @@ const ReportsPage: React.FC = () => {
 
       {/* Produtos */}
       {!loading && tab === 'produtos' && (
+        <>
+          {products.length > 0 && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div className="card-header">
+                <h3 className="card-title"><BarChart3 size={16} /> Top 5 produtos por faturamento</h3>
+              </div>
+              <div style={{ height: 260, padding: '8px 16px 16px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={products.slice(0, 5).map(p => ({ name: p.productName, revenue: p.revenue }))}
+                    layout="vertical"
+                    margin={{ left: 8, right: 24 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(6,182,212,0.06)" horizontal={false} />
+                    <XAxis
+                      type="number"
+                      tick={{ fill: '#4a7a94', fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={{ stroke: 'rgba(6,182,212,0.1)' }}
+                      tickFormatter={(v: number) => v >= 1000 ? `R$${(v / 1000).toFixed(1)}k` : `R$${v.toFixed(0)}`}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={160}
+                      tick={{ fill: '#94b8d0', fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v: string) => v.length > 22 ? `${v.slice(0, 22)}…` : v}
+                    />
+                    <Tooltip
+                      contentStyle={{ background: 'rgba(10,20,14,0.96)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 12, fontSize: 13 }}
+                      formatter={(value: number) => [formatCurrency(value), 'Faturamento']}
+                    />
+                    <Bar dataKey="revenue" fill="#fbbf24" radius={[0, 4, 4, 0]} barSize={22} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         <div className="table-container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border-glass)' }}>
             <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Top {productLimit} produtos por faturamento</span>
@@ -484,6 +524,7 @@ const ReportsPage: React.FC = () => {
             </table>
           )}
         </div>
+        </>
       )}
     </div>
   );
