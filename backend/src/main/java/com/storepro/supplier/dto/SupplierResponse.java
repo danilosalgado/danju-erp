@@ -31,6 +31,6 @@ public class SupplierResponse {
     private String contactPerson;
     private String notes;
     private boolean active;
-    private int avgDeliveryDays;
+    private Integer avgDeliveryDays;
     private LocalDateTime createdAt;
 }
