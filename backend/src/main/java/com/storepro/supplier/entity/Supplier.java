@@ -67,5 +67,5 @@ public class Supplier extends BaseEntity {
 
     @Column(name = "avg_delivery_days")
     @Builder.Default
-    private int avgDeliveryDays = 0;
+    private Integer avgDeliveryDays = 0;
 }
