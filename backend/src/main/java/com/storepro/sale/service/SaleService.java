@@ -172,6 +172,11 @@ public class SaleService {
                 page, size, salePage.getTotalElements());
     }
 
+    @Transactional(readOnly = true)
+    public BigDecimal getFilteredTotal(String status, LocalDateTime start, LocalDateTime end) {
+        return saleRepository.sumTotalWithFilters(status, start, end);
+    }
+
     @Transactional
     public void cancelSale(UUID id) {
         Sale sale = saleRepository.findById(id)

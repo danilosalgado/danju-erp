@@ -26,6 +26,15 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
             @Param("endDate") LocalDateTime endDate,
             Pageable pageable);
 
+    @Query("SELECT COALESCE(SUM(s.total), 0) FROM Sale s WHERE " +
+           "(cast(:status as text) IS NULL OR s.status = :status) " +
+           "AND (cast(:startDate as timestamp) IS NULL OR s.createdAt >= :startDate) " +
+           "AND (cast(:endDate as timestamp) IS NULL OR s.createdAt <= :endDate)")
+    BigDecimal sumTotalWithFilters(
+            @Param("status") String status,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
+
     @Query("SELECT COALESCE(SUM(s.total), 0) FROM Sale s WHERE s.status = 'FINALIZADA' " +
            "AND s.createdAt >= :start AND s.createdAt <= :end")
     BigDecimal sumTotalByPeriod(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
