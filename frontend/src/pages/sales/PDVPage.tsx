@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, ShoppingCart, Printer, X, Check, Camera, Edit3, DollarSign } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, ShoppingCart, Printer, X, Check, Camera, Edit3, DollarSign, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import type { ApiResponse } from '../../types';
@@ -43,6 +43,13 @@ const PAYMENT_METHODS = [
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
+// Dinheiro é arredondado para centavos antes de comparar ou enviar. Sem isso um
+// total com precisão abaixo do centavo (1,237 KG × R$ 80,90 = 100,0733, ou um
+// preço editado com 3 casas) deixa o restante positivo por uma fração invisível:
+// a tela exibe "Falta R$ 0,00" e o botão de confirmar fica travado.
+const toCents = (value: number) => Math.round(value * 100);
+const round2 = (value: number) => toCents(value) / 100;
+
 const PDVPage: React.FC = () => {
   const { cart, addToCart: storeAddToCart, updateQuantity, setQuantity, setItemPrice, removeItem, clearCart } = usePDVStore();
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,6 +57,7 @@ const PDVPage: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [paymentEntries, setPaymentEntries] = useState<PaymentEntry[]>([{ method: 'DINHEIRO', amount: '' }]);
+  const [discountValue, setDiscountValue] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<SaleResult | null>(null);
   const [showScanner, setShowScanner] = useState(false);
@@ -86,15 +94,27 @@ const PDVPage: React.FC = () => {
     searchRef.current?.focus();
   };
 
-  const subtotal = cart.reduce((sum, i) => sum + i.unitPrice * i.quantity - i.discount, 0);
-  const total = subtotal;
+  // Espelha o cálculo do backend item a item (salePrice × qty − desconto, com
+  // arredondamento por item). Arredondar só a soma divergiria dele em centavos.
+  const itemDiscountOf = (i: CartItem) =>
+    round2(i.product.salePrice * i.quantity - i.unitPrice * i.quantity + i.discount);
+  const itemTotalOf = (i: CartItem) =>
+    round2(i.product.salePrice * i.quantity - itemDiscountOf(i));
+
+  const subtotal = round2(cart.reduce((sum, i) => sum + itemTotalOf(i), 0));
+
+  // Desconto da venda em reais, aplicado na tela de confirmação de pagamento
+  // e limitado ao subtotal para o total nunca ficar negativo.
+  const rawDiscount = Number(discountValue) || 0;
+  const discountAmount = Math.min(subtotal, Math.max(0, round2(rawDiscount)));
+  const total = round2(subtotal - discountAmount);
 
   // Payment helpers
-  const totalPaid = paymentEntries.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  const remaining = Math.max(0, total - totalPaid);
+  const totalPaid = round2(paymentEntries.reduce((sum, p) => sum + (Number(p.amount) || 0), 0));
+  const remaining = Math.max(0, round2(total - totalPaid));
   const hasCash = paymentEntries.some(p => p.method === 'DINHEIRO');
-  const cashTotal = paymentEntries.filter(p => p.method === 'DINHEIRO').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  const change = totalPaid > total && hasCash ? totalPaid - total : 0;
+  const cashTotal = round2(paymentEntries.filter(p => p.method === 'DINHEIRO').reduce((sum, p) => sum + (Number(p.amount) || 0), 0));
+  const change = toCents(totalPaid) > toCents(total) && hasCash ? round2(totalPaid - total) : 0;
 
   const addPaymentEntry = () => {
     setPaymentEntries([...paymentEntries, { method: 'PIX', amount: '' }]);
@@ -111,7 +131,7 @@ const PDVPage: React.FC = () => {
 
   const fillRemaining = (index: number) => {
     const othersPaid = paymentEntries.reduce((sum, p, i) => i !== index ? sum + (Number(p.amount) || 0) : sum, 0);
-    const rem = Math.max(0, total - othersPaid);
+    const rem = Math.max(0, round2(total - othersPaid));
     updatePaymentEntry(index, 'amount', rem.toFixed(2));
   };
 
@@ -141,7 +161,7 @@ const PDVPage: React.FC = () => {
     const validPayments = paymentEntries.filter(p => Number(p.amount) > 0);
     if (validPayments.length === 0) { toast.error('Adicione pelo menos um pagamento'); return; }
 
-    if (totalPaid < total) {
+    if (toCents(totalPaid) < toCents(total)) {
       toast.error(`Pagamento insuficiente. Faltam ${formatCurrency(remaining)}`);
       return;
     }
@@ -152,20 +172,27 @@ const PDVPage: React.FC = () => {
         items: cart.map(i => ({
           productId: i.product.id,
           quantity: i.quantity,
-          discount: i.product.salePrice * i.quantity - i.unitPrice * i.quantity, // discount = originalTotal - customTotal
+          // discount = originalTotal - customTotal
+          discount: itemDiscountOf(i),
         })),
         payments: validPayments.map(p => ({
           method: p.method,
-          amount: Number(p.amount),
+          amount: round2(Number(p.amount)),
           installments: 1,
           reference: '',
         })),
+        ...(discountAmount > 0 && {
+          discountType: 'FIXO',
+          // envia o desconto já limitado ao subtotal para o total bater com o backend
+          discountValue: discountAmount,
+        }),
       };
       const res = await api.post<ApiResponse<SaleResult>>('/sales', payload);
       setReceipt(res.data.data);
       clearCart();
       setShowPayment(false);
       setPaymentEntries([{ method: 'DINHEIRO', amount: '' }]);
+      setDiscountValue('');
       toast.success('Venda registrada com sucesso!');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Erro ao registrar venda');
@@ -407,7 +434,7 @@ const PDVPage: React.FC = () => {
                     </div>
                   )}
                   <div style={{ width: 75, textAlign: 'right', fontWeight: 600, fontSize: 13 }}>
-                    {formatCurrency(item.unitPrice * item.quantity)}
+                    {formatCurrency(itemTotalOf(item))}
                   </div>
                   <button className="btn btn-ghost btn-icon" style={{ width: 26, height: 26, color: 'var(--danger-400)' }} onClick={() => removeItem(item.product.id)}>
                     <Trash2 size={13} />
@@ -446,8 +473,62 @@ const PDVPage: React.FC = () => {
               <button className="btn btn-ghost btn-icon" onClick={() => setShowPayment(false)}><X size={20} /></button>
             </div>
 
-            <div style={{ fontSize: 28, fontWeight: 700, textAlign: 'center', marginBottom: 24, color: 'var(--accent-400)' }}>
-              {formatCurrency(total)}
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              {discountAmount > 0 && (
+                <div style={{ fontSize: 15, color: 'var(--text-muted)', textDecoration: 'line-through' }}>
+                  {formatCurrency(subtotal)}
+                </div>
+              )}
+              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent-400)' }}>
+                {formatCurrency(total)}
+              </div>
+              {discountAmount > 0 && (
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b', marginTop: 2 }}>
+                  Desconto de {formatCurrency(discountAmount)}
+                </div>
+              )}
+            </div>
+
+            {/* Desconto da venda */}
+            <div style={{
+              padding: 16, marginBottom: 16,
+              background: 'var(--bg-hover)', borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-glass)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Tag size={14} /> Desconto
+                </span>
+                {discountAmount > 0 && (
+                  <button
+                    className="btn btn-ghost btn-icon"
+                    style={{ width: 24, height: 24, color: 'var(--danger-400)' }}
+                    onClick={() => setDiscountValue('')}
+                    title="Remover desconto"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{
+                  display: 'flex', alignItems: 'center', gap: 4, height: 44, padding: '0 12px',
+                  fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)',
+                }}>
+                  <DollarSign size={14} /> R$
+                </span>
+                <input
+                  className="form-input"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={subtotal}
+                  placeholder="0,00"
+                  value={discountValue}
+                  onChange={e => setDiscountValue(e.target.value)}
+                  style={{ fontSize: 18, textAlign: 'center', height: 44, flex: 1 }}
+                />
+              </div>
             </div>
 
             {/* Payment entries */}
@@ -521,6 +602,18 @@ const PDVPage: React.FC = () => {
               background: remaining > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(6, 182, 212, 0.1)',
               marginBottom: 16,
             }}>
+              {discountAmount > 0 && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                    <span>Subtotal</span>
+                    <span style={{ fontWeight: 600 }}>{formatCurrency(subtotal)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4, color: '#f59e0b' }}>
+                    <span>Desconto</span>
+                    <span style={{ fontWeight: 600 }}>− {formatCurrency(discountAmount)}</span>
+                  </div>
+                </>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
                 <span>Total da venda</span>
                 <span style={{ fontWeight: 600 }}>{formatCurrency(total)}</span>
@@ -545,7 +638,7 @@ const PDVPage: React.FC = () => {
             <button
               className="btn btn-primary"
               style={{ width: '100%', height: 48, fontSize: 16 }}
-              disabled={submitting || remaining > 0}
+              disabled={submitting || toCents(remaining) > 0}
               onClick={finalizeSale}
             >
               {submitting ? <span className="loading-spinner" /> : <><Check size={18} /> Confirmar Pagamento</>}

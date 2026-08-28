@@ -41,6 +41,17 @@ public class SaleService {
     private final CustomerRepository customerRepository;
     private final EntityManager entityManager;
 
+    /**
+     * Arredonda para centavos. Sem isso, itens com quantidade fracionada
+     * (1,237 KG × R$ 80,90 = 100,0733) geram um total com precisão abaixo do
+     * centavo, e o caixa que paga os R$ 100,07 exibidos é recusado por
+     * "Pagamento insuficiente". Também alinha o valor em memória com a
+     * escala 2 das colunas de dinheiro.
+     */
+    private static BigDecimal money(BigDecimal value) {
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
     @Transactional
     public SaleResponse createSale(CreateSaleRequest request) {
         User currentUser = getCurrentUser();
@@ -74,9 +85,9 @@ public class SaleService {
             }
 
             BigDecimal itemDiscount = itemReq.getDiscount() != null ? itemReq.getDiscount() : BigDecimal.ZERO;
-            BigDecimal itemTotal = product.getSalePrice()
+            BigDecimal itemTotal = money(product.getSalePrice()
                     .multiply(itemReq.getQuantity())
-                    .subtract(itemDiscount);
+                    .subtract(itemDiscount));
 
             SaleItem item = SaleItem.builder()
                     .sale(sale)
@@ -111,21 +122,23 @@ public class SaleService {
                 discountAmount = request.getDiscountValue();
             }
         }
+        discountAmount = money(discountAmount);
         sale.setDiscountAmount(discountAmount);
 
-        BigDecimal surcharge = request.getSurcharge() != null ? request.getSurcharge() : BigDecimal.ZERO;
+        BigDecimal surcharge = money(request.getSurcharge() != null ? request.getSurcharge() : BigDecimal.ZERO);
         sale.setSurcharge(surcharge);
 
-        BigDecimal total = subtotal.subtract(discountAmount).add(surcharge);
+        BigDecimal total = money(subtotal.subtract(discountAmount).add(surcharge));
         sale.setTotal(total);
 
         // Process payments
         BigDecimal totalPaid = BigDecimal.ZERO;
         for (CreateSaleRequest.SalePaymentRequest payReq : request.getPayments()) {
+            BigDecimal amount = money(payReq.getAmount());
             SalePayment payment = SalePayment.builder()
                     .sale(sale)
                     .method(payReq.getMethod())
-                    .amount(payReq.getAmount())
+                    .amount(amount)
                     .installments(payReq.getInstallments() > 0 ? payReq.getInstallments() : 1)
                     .reference(payReq.getReference())
                     .build();
@@ -133,13 +146,13 @@ public class SaleService {
             // Calculate change for cash payments
             if ("DINHEIRO".equals(payReq.getMethod())) {
                 BigDecimal remaining = total.subtract(totalPaid);
-                if (payReq.getAmount().compareTo(remaining) > 0) {
-                    payment.setChangeAmount(payReq.getAmount().subtract(remaining));
+                if (amount.compareTo(remaining) > 0) {
+                    payment.setChangeAmount(amount.subtract(remaining));
                 }
             }
 
             sale.getPayments().add(payment);
-            totalPaid = totalPaid.add(payReq.getAmount());
+            totalPaid = totalPaid.add(amount);
         }
 
         if (totalPaid.compareTo(total) < 0) {
@@ -236,9 +249,9 @@ public class SaleService {
             }
 
             BigDecimal itemDiscount = itemReq.getDiscount() != null ? itemReq.getDiscount() : BigDecimal.ZERO;
-            BigDecimal itemTotal = product.getSalePrice()
+            BigDecimal itemTotal = money(product.getSalePrice()
                     .multiply(itemReq.getQuantity())
-                    .subtract(itemDiscount);
+                    .subtract(itemDiscount));
 
             SaleItem item = SaleItem.builder()
                     .sale(sale)
@@ -272,12 +285,13 @@ public class SaleService {
                 discountAmount = request.getDiscountValue();
             }
         }
+        discountAmount = money(discountAmount);
         sale.setDiscountAmount(discountAmount);
 
-        BigDecimal surcharge = request.getSurcharge() != null ? request.getSurcharge() : BigDecimal.ZERO;
+        BigDecimal surcharge = money(request.getSurcharge() != null ? request.getSurcharge() : BigDecimal.ZERO);
         sale.setSurcharge(surcharge);
 
-        BigDecimal total = subtotal.subtract(discountAmount).add(surcharge);
+        BigDecimal total = money(subtotal.subtract(discountAmount).add(surcharge));
         sale.setTotal(total);
 
         // 5. Process new payments

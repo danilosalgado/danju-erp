@@ -51,6 +51,8 @@ const SaleReceipt: React.FC<SaleReceiptProps> = ({ sale }) => {
     .map(p => paymentMethodLabels[p.method] || p.method.replace(/_/g, ' '))
     .join(' + ');
   const now = new Date();
+  const discountAmount = sale.discountAmount || 0;
+  const surcharge = sale.surcharge || 0;
 
   return (
     <div className="receipt" id="receipt">
@@ -115,9 +117,15 @@ const SaleReceipt: React.FC<SaleReceiptProps> = ({ sale }) => {
         <span>{formatCurrency(sale.subtotal)}</span>
       </div>
       <div className="receipt-totals-row">
-        <span>Desconto/Acréscimo:</span>
-        <span>{formatCurrency((sale.surcharge || 0) - (sale.discountAmount || 0))}</span>
+        <span>Desconto:</span>
+        <span>{discountAmount > 0 ? `- ${formatCurrency(discountAmount)}` : formatCurrency(0)}</span>
       </div>
+      {surcharge > 0 && (
+        <div className="receipt-totals-row">
+          <span>Acréscimo:</span>
+          <span>{formatCurrency(surcharge)}</span>
+        </div>
+      )}
       <div className="receipt-totals-row grand">
         <span>TOTAL GERAL:</span>
         <span>{formatCurrency(sale.total)}</span>
