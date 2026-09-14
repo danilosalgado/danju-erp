@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, ShoppingCart, Printer, X, Check, Camera, Edit3, DollarSign, Tag, UserCircle, Loader2, QrCode, Copy } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, ShoppingCart, Printer, X, Check, Camera, Edit3, DollarSign, Tag, UserCircle, Nfc, Loader2, QrCode, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import type { ApiResponse } from '../../types';
@@ -58,6 +58,8 @@ interface TerminalPayment {
   qrCodeImageUrl: string | null;
 }
 
+const CARD_METHODS = ['CARTAO_CREDITO', 'CARTAO_DEBITO'];
+
 // O PagBank confere o digito verificador e recusa a cobranca. Validar aqui faz o
 // caixa ver o erro no campo, antes de gerar o QR com o cliente esperando.
 const onlyDigits = (v: string) => v.replace(/\D/g, '');
@@ -95,6 +97,11 @@ const formatTaxId = (value: string) => {
   return d.replace(/(\d{2})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1/$2').replace(/(\d{4})(\d{1,2})$/, '$1-$2');
 };
 
+const TERMINAL_STATUS_LABEL: Record<string, string> = {
+  PENDENTE: 'Enviando para a maquininha...',
+  ENVIADO: 'Peça para o cliente passar o cartão',
+};
+
 const PAYMENT_METHODS = [
   { key: 'DINHEIRO', label: 'Dinheiro', icon: Banknote, color: '#06b6d4' },
   { key: 'CARTAO_CREDITO', label: 'Crédito', icon: CreditCard, color: '#6366f1' },
@@ -125,6 +132,7 @@ const PDVPage: React.FC = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [editingPrice, setEditingPrice] = useState<string | null>(null);
   const [editPriceValue, setEditPriceValue] = useState('');
+  const [cardEnabled, setCardEnabled] = useState(false);
   const [pixEnabled, setPixEnabled] = useState(false);
   const [charging, setCharging] = useState<{ index: number; id: string; status: string; qr?: TerminalPayment } | null>(null);
   const abortPoll = useRef(false);
@@ -140,9 +148,12 @@ const PDVPage: React.FC = () => {
     searchRef.current?.focus();
     // Sem token do PagBank configurado o backend responde enabled=false e o
     // PDV segue no fluxo manual de sempre.
-    api.get<ApiResponse<{ pixEnabled: boolean }>>('/terminal-payments/config')
-      .then(res => setPixEnabled(res.data.data.pixEnabled))
-      .catch(() => setPixEnabled(false));
+    api.get<ApiResponse<{ cardEnabled: boolean; pixEnabled: boolean }>>('/terminal-payments/config')
+      .then(res => {
+        setCardEnabled(res.data.data.cardEnabled);
+        setPixEnabled(res.data.data.pixEnabled);
+      })
+      .catch(() => { setCardEnabled(false); setPixEnabled(false); });
   }, []);
 
   const searchProducts = (query: string) => {
@@ -844,8 +855,9 @@ const PDVPage: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Cobranca automatica de PIX pela API do PagBank */}
-                {pixEnabled && entry.method === 'PIX' && (
+                {/* Cobranca automatica: cartao na maquininha, PIX pela API */}
+                {((cardEnabled && CARD_METHODS.includes(entry.method))
+                  || (pixEnabled && entry.method === 'PIX')) && (
                   entry.terminalPaymentId ? (
                     <div style={{
                       marginTop: 8, padding: '8px 10px', borderRadius: 'var(--radius-sm)',
@@ -853,7 +865,7 @@ const PDVPage: React.FC = () => {
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
                     }}>
                       <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <Check size={14} /> PIX confirmado
+                        <Check size={14} /> {entry.method === 'PIX' ? 'PIX confirmado' : 'Aprovado na maquininha'}
                         {entry.nsu && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>NSU {entry.nsu}</span>}
                         {entry.cardBrand && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{entry.cardBrand}</span>}
                       </span>
@@ -868,7 +880,7 @@ const PDVPage: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                    {(
+                    {entry.method === 'PIX' && (
                       <div style={{ marginTop: 8 }}>
                         <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
                           CPF na nota <span style={{ opacity: 0.7 }}>(opcional — em branco usa o CNPJ da loja)</span>
@@ -896,11 +908,13 @@ const PDVPage: React.FC = () => {
                       disabled={
                         !!charging
                         || !(Number(entry.amount) > 0)
-                        || (!!payerTaxId && !isValidTaxId(payerTaxId))
+                        || (entry.method === 'PIX' && !!payerTaxId && !isValidTaxId(payerTaxId))
                       }
                       onClick={() => chargeOnTerminal(idx)}
                     >
-                      <QrCode size={15} /> Gerar QR Code PIX
+                      {entry.method === 'PIX'
+                        ? <><QrCode size={15} /> Gerar QR Code PIX</>
+                        : <><Nfc size={15} /> Cobrar na maquininha</>}
                     </button>
                     </>
                   )
@@ -974,37 +988,59 @@ const PDVPage: React.FC = () => {
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16,
         }}>
-          <div className="card" style={{ width: '100%', maxWidth: 420, padding: 32, textAlign: 'center' }}>
-            <h3 style={{ marginBottom: 6 }}>Pagamento via PIX</h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
-              O cliente escaneia com o app do banco
-            </p>
+          <div className="card" style={{ width: '100%', maxWidth: charging.qr ? 420 : 380, padding: 32, textAlign: 'center' }}>
+            {charging.qr ? (
+              <>
+                <h3 style={{ marginBottom: 6 }}>Pagamento via PIX</h3>
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                  O cliente escaneia com o app do banco
+                </p>
 
-            {/* O PagBank serve o PNG do QR numa URL publica, entao da para
-                exibir direto sem precisar gerar a imagem no navegador. */}
-            {charging.qr?.qrCodeImageUrl && (
-              <div style={{ background: '#fff', padding: 12, borderRadius: 'var(--radius-md)', display: 'inline-block', marginBottom: 16 }}>
-                <img src={charging.qr.qrCodeImageUrl} alt="QR Code do PIX" style={{ width: 200, height: 200, display: 'block' }} />
-              </div>
-            )}
+                {/* O PagBank serve o PNG do QR numa URL publica, entao da para
+                    exibir direto sem precisar gerar a imagem no navegador. */}
+                <div style={{ background: '#fff', padding: 12, borderRadius: 'var(--radius-md)', display: 'inline-block', marginBottom: 16 }}>
+                  <img
+                    src={charging.qr.qrCodeImageUrl!}
+                    alt="QR Code do PIX"
+                    style={{ width: 200, height: 200, display: 'block' }}
+                  />
+                </div>
 
-            <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--accent-400)', marginBottom: 16 }}>
-              {formatCurrency(round2(Number(paymentEntries[charging.index]?.amount) || 0))}
-            </div>
+                <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--accent-400)', marginBottom: 16 }}>
+                  {formatCurrency(round2(Number(paymentEntries[charging.index]?.amount) || 0))}
+                </div>
 
-            {charging.qr?.qrCodeText && (
-              <button
-                className="btn btn-secondary"
-                style={{ width: '100%', marginBottom: 12, fontSize: 13 }}
-                onClick={() => copyPixCode(charging.qr!.qrCodeText!)}
-              >
-                <Copy size={15} /> Copiar código (copia e cola)
-              </button>
+                {charging.qr.qrCodeText && (
+                  <button
+                    className="btn btn-secondary"
+                    style={{ width: '100%', marginBottom: 12, fontSize: 13 }}
+                    onClick={() => copyPixCode(charging.qr!.qrCodeText!)}
+                  >
+                    <Copy size={15} /> Copiar código (copia e cola)
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <div style={{
+                  width: 64, height: 64, borderRadius: '50%', margin: '0 auto 20px',
+                  background: 'rgba(6,182,212,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Nfc size={30} style={{ color: 'var(--accent-400)' }} />
+                </div>
+                <h3 style={{ marginBottom: 8 }}>Cobrando na maquininha</h3>
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                  {TERMINAL_STATUS_LABEL[charging.status] ?? 'Processando...'}
+                </p>
+                <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--accent-400)', margin: '12px 0 20px' }}>
+                  {formatCurrency(round2(Number(paymentEntries[charging.index]?.amount) || 0))}
+                </div>
+              </>
             )}
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 20, color: 'var(--text-muted)', fontSize: 13 }}>
               <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-              Aguardando o pagamento...
+              {charging.qr ? 'Aguardando o pagamento...' : 'Aguardando resposta...'}
             </div>
             <button className="btn btn-ghost" style={{ width: '100%' }} onClick={cancelTerminalCharge}>
               <X size={16} /> Cancelar cobrança

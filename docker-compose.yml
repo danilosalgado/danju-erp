@@ -37,6 +37,12 @@ services:
       SPRING_DATASOURCE_USERNAME: storepro
       SPRING_DATASOURCE_PASSWORD: storepro123
       SPRING_PROFILES_ACTIVE: dev
+      # Cobranca automatica na maquininha PagBank. Ligue quando o app da
+      # Moderninha Smart estiver instalado e com o mesmo TERMINAL_AGENT_TOKEN.
+      TERMINAL_ENABLED: ${TERMINAL_ENABLED:-false}
+      TERMINAL_ID: ${TERMINAL_ID:-CAIXA01}
+      TERMINAL_AGENT_TOKEN: ${TERMINAL_AGENT_TOKEN:-}
+      TERMINAL_TIMEOUT_SECONDS: ${TERMINAL_TIMEOUT_SECONDS:-180}
       # PIX com QR Code no PDV. Sem token o PDV segue no modo manual.
       PAGBANK_ENABLED: ${PAGBANK_ENABLED:-false}
       PAGBANK_ENV: ${PAGBANK_ENV:-sandbox}

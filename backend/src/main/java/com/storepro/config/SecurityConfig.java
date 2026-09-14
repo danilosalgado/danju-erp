@@ -41,6 +41,9 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health").permitAll()
                 // O PagBank chama de fora, sem credencial nossa. O controller nao
                 // confia no corpo: ele reconsulta o pedido na API do PagBank.
+                // O app da maquininha nao tem JWT; ele se autentica pelo header
+                // X-Terminal-Token, conferido dentro do TerminalAgentController.
+                .requestMatchers("/terminal-agent/**").permitAll()
                 .requestMatchers("/pagbank/webhook").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated()
