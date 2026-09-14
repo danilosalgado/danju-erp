@@ -70,6 +70,13 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
            "GROUP BY sp.method ORDER BY total DESC", nativeQuery = true)
     java.util.List<Object[]> findRevenueByPaymentMethod(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
+    @Query("SELECT COUNT(s), COALESCE(SUM(s.total), 0), MAX(s.createdAt) FROM Sale s " +
+           "WHERE s.customer.id = :customerId AND s.status = 'FINALIZADA'")
+    java.util.List<Object[]> findCustomerStats(@Param("customerId") UUID customerId);
+
+    @Query("SELECT s FROM Sale s WHERE s.customer.id = :customerId ORDER BY s.createdAt DESC")
+    java.util.List<Sale> findByCustomer(@Param("customerId") UUID customerId, Pageable pageable);
+
     @Query(value = "SELECT si.product_id, si.product_name, COALESCE(SUM(si.quantity), 0) as qty, " +
            "COALESCE(SUM(si.total_price), 0) as revenue, MAX(si.unit) as unit " +
            "FROM sale_items si JOIN sales s ON s.id = si.sale_id " +

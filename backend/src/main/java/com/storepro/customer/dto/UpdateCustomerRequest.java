@@ -1,21 +1,16 @@
 package com.storepro.customer.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class CustomerResponse {
-    private UUID id;
+public class UpdateCustomerRequest {
+    @NotBlank(message = "Nome é obrigatório")
+    @Size(max = 200)
     private String name;
     private String cpfCnpj;
     private String phone;
@@ -28,10 +23,7 @@ public class CustomerResponse {
     private String neighborhood;
     private String city;
     private String state;
-    private String notes;
-    private int loyaltyPoints;
-    private BigDecimal cashbackBalance;
     private BigDecimal creditLimit;
-    private boolean active;
-    private LocalDateTime createdAt;
+    private String notes;
+    private Boolean active;
 }

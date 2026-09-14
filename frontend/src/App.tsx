@@ -8,6 +8,7 @@ import UsersPage from './pages/users/UsersPage';
 import ProductsPage from './pages/products/ProductsPage';
 import CategoriesPage from './pages/categories/CategoriesPage';
 import SuppliersPage from './pages/suppliers/SuppliersPage';
+import CustomersPage from './pages/customers/CustomersPage';
 import PDVPage from './pages/sales/PDVPage';
 import SalesHistoryPage from './pages/sales/SalesHistoryPage';
 import InvoiceImportPage from './pages/invoices/InvoiceImportPage';
@@ -55,7 +56,7 @@ const App: React.FC = () => {
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/suppliers" element={<SuppliersPage />} />
-        <Route path="/customers" element={<ComingSoon title="Clientes" />} />
+        <Route path="/customers" element={<CustomersPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/purchases" element={<PurchasesPage />} />
         <Route path="/sales" element={<PDVPage />} />
