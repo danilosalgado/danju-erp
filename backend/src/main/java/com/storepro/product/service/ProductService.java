@@ -219,18 +219,23 @@ public class ProductService {
                 .map(Product::getCurrentStock)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
 
-        // Top 5 most valuable products by stock value
+        // Top 5 most valuable products by stock value.
+        // O valor do estoque e o quanto esta imobilizado nele, ou seja, o que foi
+        // pago ao fornecedor (costPrice). O preco de venda so seria realizado se
+        // tudo fosse vendido, e por isso vai separado em saleValue.
         List<java.util.Map<String, Object>> topValueProducts = activeProducts.stream()
-                .sorted((a, b) -> b.getSalePrice().multiply(b.getCurrentStock())
-                        .compareTo(a.getSalePrice().multiply(a.getCurrentStock())))
+                .sorted((a, b) -> b.getCostPrice().multiply(b.getCurrentStock())
+                        .compareTo(a.getCostPrice().multiply(a.getCurrentStock())))
                 .limit(5)
                 .map(p -> {
                     java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
                     m.put("name", p.getName());
                     m.put("currentStock", p.getCurrentStock());
                     m.put("unit", p.getUnit());
+                    m.put("costPrice", p.getCostPrice());
                     m.put("salePrice", p.getSalePrice());
-                    m.put("stockValue", p.getSalePrice().multiply(p.getCurrentStock()));
+                    m.put("stockValue", p.getCostPrice().multiply(p.getCurrentStock()));
+                    m.put("saleValue", p.getSalePrice().multiply(p.getCurrentStock()));
                     return m;
                 })
                 .toList();
@@ -249,7 +254,7 @@ public class ProductService {
             java.util.Map<String, Object> cat = categoryMap.get(catName);
             cat.put("count", (Long) cat.get("count") + 1);
             cat.put("stockValue", ((java.math.BigDecimal) cat.get("stockValue"))
-                    .add(p.getSalePrice().multiply(p.getCurrentStock())));
+                    .add(p.getCostPrice().multiply(p.getCurrentStock())));
         }
         List<java.util.Map<String, Object>> categories = new java.util.ArrayList<>(categoryMap.values());
         categories.sort((a, b) -> ((java.math.BigDecimal) b.get("stockValue"))

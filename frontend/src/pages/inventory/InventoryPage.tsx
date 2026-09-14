@@ -29,7 +29,7 @@ interface InventorySummary {
   healthyStock: number;
   lowStockCount: number;
   outOfStockCount: number;
-  topValueProducts: { name: string; currentStock: number; unit: string; salePrice: number; stockValue: number }[];
+  topValueProducts: { name: string; currentStock: number; unit: string; costPrice: number; salePrice: number; stockValue: number; saleValue: number }[];
   categories: { name: string; count: number; stockValue: number }[];
 }
 
@@ -103,16 +103,16 @@ const InventoryPage: React.FC = () => {
             {/* Total Stock Value */}
             <div className="card" style={{ padding: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Valor Total (Venda)</span>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Valor do Estoque (Custo)</span>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(6,182,212,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <DollarSign size={18} style={{ color: 'var(--accent-400)' }} />
                 </div>
               </div>
               <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent-400)' }}>
-                {formatCurrency(summary.totalSaleValue)}
+                {formatCurrency(summary.totalCostValue)}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                Custo: {formatCurrency(summary.totalCostValue)}
+                Se vendido: {formatCurrency(summary.totalSaleValue)}
               </div>
             </div>
 
@@ -178,7 +178,7 @@ const InventoryPage: React.FC = () => {
             {/* Top Products by Value */}
             <div className="card">
               <div className="card-header">
-                <h3 className="card-title"><BarChart3 size={16} /> Produtos Mais Valiosos</h3>
+                <h3 className="card-title"><BarChart3 size={16} /> Produtos Mais Valiosos (custo)</h3>
               </div>
               <div style={{ padding: '0 16px 16px' }}>
                 {summary.topValueProducts.map((p, i) => (
@@ -197,7 +197,7 @@ const InventoryPage: React.FC = () => {
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500 }}>{p.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                          {formatQty(p.currentStock)} {p.unit} × {formatCurrency(p.salePrice)}
+                          {formatQty(p.currentStock)} {p.unit} × {formatCurrency(p.costPrice)} de custo
                         </div>
                       </div>
                     </div>
@@ -217,11 +217,11 @@ const InventoryPage: React.FC = () => {
             {/* Categories Breakdown */}
             <div className="card">
               <div className="card-header">
-                <h3 className="card-title"><Layers size={16} /> Estoque por Categoria</h3>
+                <h3 className="card-title"><Layers size={16} /> Estoque por Categoria (custo)</h3>
               </div>
               <div style={{ padding: '0 16px 16px' }}>
                 {summary.categories.map((cat, i) => {
-                  const pct = summary.totalSaleValue > 0 ? (cat.stockValue / summary.totalSaleValue) * 100 : 0;
+                  const pct = summary.totalCostValue > 0 ? (cat.stockValue / summary.totalCostValue) * 100 : 0;
                   return (
                     <div key={i} style={{ marginBottom: 14 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
@@ -299,16 +299,18 @@ const InventoryPage: React.FC = () => {
                   <th style={{ textAlign: 'center' }}>Estoque Atual</th>
                   <th style={{ textAlign: 'center' }}>Estoque Mín.</th>
                   <th style={{ textAlign: 'center' }}>Status</th>
-                  <th style={{ textAlign: 'right' }}>Valor Custo</th>
-                  <th style={{ textAlign: 'right' }}>Valor Venda</th>
+                  <th style={{ textAlign: 'right' }}>Valor em Estoque</th>
+                  <th style={{ textAlign: 'right' }}>Se Vendido</th>
                 </tr>
               </thead>
               <tbody>
                 {products.map(p => {
                   const isOut = p.currentStock <= 0;
                   const isLow = !isOut && p.currentStock <= p.minStock;
-                  const stockValue = p.salePrice * p.currentStock;
-                  const costValue = p.costPrice * p.currentStock;
+                  // Valor em estoque = o que foi pago por ele; "se vendido" e o
+                  // faturamento potencial, nao o valor do ativo.
+                  const stockValue = p.costPrice * p.currentStock;
+                  const saleValue = p.salePrice * p.currentStock;
                   return (
                     <tr key={p.id}>
                       <td>
@@ -336,8 +338,8 @@ const InventoryPage: React.FC = () => {
                           <span className="badge badge-success" style={{ gap: 4 }}><CheckCircle size={12} /> Normal</span>
                         )}
                       </td>
-                      <td style={{ textAlign: 'right', fontSize: 13 }}>{formatCurrency(costValue)}</td>
                       <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--accent-400)', fontSize: 13 }}>{formatCurrency(stockValue)}</td>
+                      <td style={{ textAlign: 'right', fontSize: 13, color: 'var(--text-muted)' }}>{formatCurrency(saleValue)}</td>
                     </tr>
                   );
                 })}

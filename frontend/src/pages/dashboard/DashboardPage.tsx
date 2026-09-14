@@ -70,11 +70,13 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     Promise.all([
       api.get<ApiResponse<DashboardData>>('/dashboard'),
-      api.get<ApiResponse<{ totalSaleValue: number }>>('/products/inventory-summary'),
+      api.get<ApiResponse<{ totalCostValue: number }>>('/products/inventory-summary'),
     ])
       .then(([dashRes, stockRes]) => {
         setData(dashRes.data.data);
-        setStockValue(stockRes.data.data.totalSaleValue ?? 0);
+        // Valor do estoque = o que esta imobilizado nele (preco de compra),
+        // nao o faturamento potencial do preco de venda.
+        setStockValue(stockRes.data.data.totalCostValue ?? 0);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -139,7 +141,7 @@ const DashboardPage: React.FC = () => {
     {
       label: 'Valor do Estoque',
       value: formatCurrency(stockValue),
-      change: `${d.totalProducts} produtos`,
+      change: `${d.totalProducts} produtos a custo`,
       positive: true,
       icon: Package,
       color: 'warning',
