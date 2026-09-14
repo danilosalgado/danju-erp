@@ -51,6 +51,32 @@ app:
     expiration-ms: 86400000
     refresh-expiration-ms: 604800000
 
+  # Cobranca automatica na maquininha PagBank (Moderninha Smart).
+  # Desligado ate existir um token: com enabled=false o PDV segue no modo manual
+  # e o botao "Cobrar na maquininha" nem aparece.
+  terminal:
+    enabled: ${TERMINAL_ENABLED:false}
+    default-terminal-id: ${TERMINAL_ID:CAIXA01}
+    # Segredo compartilhado com o app instalado na maquininha (X-Terminal-Token).
+    agent-token: ${TERMINAL_AGENT_TOKEN:}
+    timeout-seconds: ${TERMINAL_TIMEOUT_SECONDS:180}
+
+  # PIX com QR Code na tela do PDV, pela API REST do PagBank.
+  # Independente da maquininha: funciona sem app Android e sem homologacao.
+  pagbank:
+    enabled: ${PAGBANK_ENABLED:false}
+    env: ${PAGBANK_ENV:sandbox}
+    token: ${PAGBANK_TOKEN:}
+    # CPF/CNPJ do pagador nas vendas de balcao sem cliente cadastrado.
+    # O PagBank confere o digito verificador e recusa a cobranca sem ele.
+    fallback-tax-id: ${PAGBANK_FALLBACK_TAX_ID:}
+    fallback-customer-name: ${PAGBANK_FALLBACK_NAME:Consumidor}
+    fallback-customer-email: ${PAGBANK_FALLBACK_EMAIL:naoinformado@danju.local}
+    # URL publica que o PagBank chama ao confirmar o pagamento. Pode ficar vazia:
+    # o PDV tambem consulta o status sozinho, so fica dependendo do polling.
+    notification-url: ${PAGBANK_NOTIFICATION_URL:}
+    qr-expiration-minutes: ${PAGBANK_QR_EXPIRATION_MINUTES:15}
+
 # Swagger
 springdoc:
   api-docs:

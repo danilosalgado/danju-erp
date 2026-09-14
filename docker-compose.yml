@@ -37,6 +37,12 @@ services:
       SPRING_DATASOURCE_USERNAME: storepro
       SPRING_DATASOURCE_PASSWORD: storepro123
       SPRING_PROFILES_ACTIVE: dev
+      # PIX com QR Code no PDV. Sem token o PDV segue no modo manual.
+      PAGBANK_ENABLED: ${PAGBANK_ENABLED:-false}
+      PAGBANK_ENV: ${PAGBANK_ENV:-sandbox}
+      PAGBANK_TOKEN: ${PAGBANK_TOKEN:-}
+      PAGBANK_FALLBACK_TAX_ID: ${PAGBANK_FALLBACK_TAX_ID:-}
+      PAGBANK_NOTIFICATION_URL: ${PAGBANK_NOTIFICATION_URL:-}
     ports:
       - "8080:8080"
     depends_on:

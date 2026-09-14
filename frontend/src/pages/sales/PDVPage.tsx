@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, ShoppingCart, Printer, X, Check, Camera, Edit3, DollarSign, Tag } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, ShoppingCart, Printer, X, Check, Camera, Edit3, DollarSign, Tag, UserCircle, Loader2, QrCode, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import type { ApiResponse } from '../../types';
@@ -17,6 +17,13 @@ interface Product {
   unit: string;
 }
 
+interface CustomerOption {
+  id: string;
+  name: string;
+  cpfCnpj: string | null;
+  phone: string | null;
+}
+
 interface CartItem {
   product: Product;
   quantity: number;
@@ -31,7 +38,62 @@ interface SaleResult extends SaleReceiptData {
 interface PaymentEntry {
   method: string;
   amount: string;
+  /** Cobranca aprovada na maquininha que cobre esta linha. */
+  terminalPaymentId?: string;
+  nsu?: string;
+  cardBrand?: string;
 }
+
+interface TerminalPayment {
+  id: string;
+  amount: number;
+  method: string;
+  status: 'PENDENTE' | 'ENVIADO' | 'APROVADO' | 'RECUSADO' | 'CANCELADO' | 'EXPIRADO';
+  nsu: string | null;
+  cardBrand: string | null;
+  cardLast4: string | null;
+  errorMessage: string | null;
+  provider: string | null;
+  qrCodeText: string | null;
+  qrCodeImageUrl: string | null;
+}
+
+// O PagBank confere o digito verificador e recusa a cobranca. Validar aqui faz o
+// caixa ver o erro no campo, antes de gerar o QR com o cliente esperando.
+const onlyDigits = (v: string) => v.replace(/\D/g, '');
+
+const isValidTaxId = (value: string): boolean => {
+  const d = onlyDigits(value);
+  if (d.length === 11) {
+    if (/^(\d)\1{10}$/.test(d)) return false;
+    const digit = (len: number, start: number) => {
+      let sum = 0;
+      for (let i = 0; i < len; i++) sum += Number(d[i]) * (start - i);
+      const rest = sum % 11;
+      return rest < 2 ? 0 : 11 - rest;
+    };
+    return digit(9, 10) === Number(d[9]) && digit(10, 11) === Number(d[10]);
+  }
+  if (d.length === 14) {
+    if (/^(\d)\1{13}$/.test(d)) return false;
+    const calc = (weights: number[]) => {
+      const sum = weights.reduce((acc, w, i) => acc + Number(d[i]) * w, 0);
+      const rest = sum % 11;
+      return rest < 2 ? 0 : 11 - rest;
+    };
+    return calc([5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[12])
+      && calc([6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[13]);
+  }
+  return false;
+};
+
+const formatTaxId = (value: string) => {
+  const d = onlyDigits(value).slice(0, 14);
+  if (d.length <= 11) {
+    return d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  }
+  return d.replace(/(\d{2})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1/$2').replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+};
 
 const PAYMENT_METHODS = [
   { key: 'DINHEIRO', label: 'Dinheiro', icon: Banknote, color: '#06b6d4' },
@@ -63,11 +125,24 @@ const PDVPage: React.FC = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [editingPrice, setEditingPrice] = useState<string | null>(null);
   const [editPriceValue, setEditPriceValue] = useState('');
+  const [pixEnabled, setPixEnabled] = useState(false);
+  const [charging, setCharging] = useState<{ index: number; id: string; status: string; qr?: TerminalPayment } | null>(null);
+  const abortPoll = useRef(false);
+  const [payerTaxId, setPayerTaxId] = useState('');
+  const [customer, setCustomer] = useState<CustomerOption | null>(null);
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [customerResults, setCustomerResults] = useState<CustomerOption[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const customerTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     searchRef.current?.focus();
+    // Sem token do PagBank configurado o backend responde enabled=false e o
+    // PDV segue no fluxo manual de sempre.
+    api.get<ApiResponse<{ pixEnabled: boolean }>>('/terminal-payments/config')
+      .then(res => setPixEnabled(res.data.data.pixEnabled))
+      .catch(() => setPixEnabled(false));
   }, []);
 
   const searchProducts = (query: string) => {
@@ -82,6 +157,20 @@ const PDVPage: React.FC = () => {
         setSearchResults(res.data.data.content);
       } catch { setSearchResults([]); }
       finally { setSearching(false); }
+    }, 300);
+  };
+
+  // Vincular a venda ao cliente e o que alimenta o historico de compras do CRM.
+  const searchCustomers = (query: string) => {
+    if (customerTimeout.current) clearTimeout(customerTimeout.current);
+    if (!query.trim()) { setCustomerResults([]); return; }
+    customerTimeout.current = setTimeout(async () => {
+      try {
+        const res = await api.get<ApiResponse<{ content: CustomerOption[] }>>('/customers', {
+          params: { search: query, active: true, size: 8 },
+        });
+        setCustomerResults(res.data.data.content);
+      } catch { setCustomerResults([]); }
     }, 300);
   };
 
@@ -126,7 +215,104 @@ const PDVPage: React.FC = () => {
   };
 
   const updatePaymentEntry = (index: number, field: keyof PaymentEntry, value: string) => {
-    setPaymentEntries(paymentEntries.map((p, i) => i === index ? { ...p, [field]: value } : p));
+    setPaymentEntries(paymentEntries.map((p, i) => {
+      if (i !== index) return p;
+      // Trocar valor ou forma invalida a autorizacao que veio da maquininha:
+      // o backend recusaria a venda por divergencia. Solta o vinculo aqui.
+      const releasesTerminal = (field === 'amount' || field === 'method') && p.terminalPaymentId;
+      return releasesTerminal
+        ? { ...p, [field]: value, terminalPaymentId: undefined, nsu: undefined, cardBrand: undefined }
+        : { ...p, [field]: value };
+    }));
+  };
+
+  const releaseTerminalPayment = (index: number) => {
+    setPaymentEntries(prev => prev.map((p, i) => i === index
+      ? { ...p, terminalPaymentId: undefined, nsu: undefined, cardBrand: undefined }
+      : p));
+  };
+
+  // ---- Cobranca na maquininha (PagBank / Moderninha Smart) ----
+  // O navegador nao fala com a maquininha: o backend enfileira a cobranca, o app
+  // da Moderninha busca, roda o PlugPag e devolve o resultado. Aqui so criamos a
+  // ordem e acompanhamos ate ela virar aprovada ou recusada.
+  const pollTerminal = async (index: number, id: string) => {
+    abortPoll.current = false;
+    while (!abortPoll.current) {
+      await new Promise(r => setTimeout(r, 2000));
+      if (abortPoll.current) return;
+      try {
+        const res = await api.get<ApiResponse<TerminalPayment>>(`/terminal-payments/${id}`);
+        const p = res.data.data;
+        setCharging(c => (c && c.id === id ? { ...c, status: p.status } : c));
+
+        if (p.status === 'APROVADO') {
+          setPaymentEntries(prev => prev.map((e, i) => i === index ? {
+            ...e,
+            amount: p.amount.toFixed(2),
+            terminalPaymentId: p.id,
+            nsu: p.nsu ?? undefined,
+            cardBrand: [p.cardBrand, p.cardLast4 && `****${p.cardLast4}`].filter(Boolean).join(' ') || undefined,
+          } : e));
+          setCharging(null);
+          toast.success('Pagamento aprovado na maquininha!');
+          return;
+        }
+        if (p.status === 'RECUSADO' || p.status === 'CANCELADO' || p.status === 'EXPIRADO') {
+          setCharging(null);
+          toast.error(p.errorMessage || `Pagamento ${p.status.toLowerCase()}`);
+          return;
+        }
+      } catch {
+        setCharging(null);
+        toast.error('Erro ao consultar a maquininha');
+        return;
+      }
+    }
+  };
+
+  const chargeOnTerminal = async (index: number) => {
+    const entry = paymentEntries[index];
+    const amount = round2(Number(entry.amount) || 0);
+    if (amount <= 0) { toast.error('Informe o valor antes de cobrar'); return; }
+
+    try {
+      const res = await api.post<ApiResponse<TerminalPayment>>('/terminal-payments', {
+        amount,
+        method: entry.method,
+        installments: 1,
+        // "CPF na nota" tem prioridade; depois o cadastro do cliente; e se nao
+        // vier nenhum dos dois, o backend usa o documento da loja.
+        ...(payerTaxId.trim() && { payerTaxId: onlyDigits(payerTaxId) }),
+        ...(customer && { customerId: customer.id }),
+      });
+      const intent = res.data.data;
+      setCharging({
+        index, id: intent.id, status: intent.status,
+        qr: intent.qrCodeImageUrl ? intent : undefined,
+      });
+      pollTerminal(index, intent.id);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erro ao gerar a cobrança');
+    }
+  };
+
+  const copyPixCode = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Código PIX copiado!');
+    } catch {
+      toast.error('Não consegui copiar — selecione o código manualmente');
+    }
+  };
+
+  const cancelTerminalCharge = async () => {
+    if (!charging) return;
+    abortPoll.current = true;
+    const id = charging.id;
+    setCharging(null);
+    try { await api.post(`/terminal-payments/${id}/cancel`); }
+    catch { /* pode ja ter finalizado na maquininha; o status final manda */ }
   };
 
   const fillRemaining = (index: number) => {
@@ -169,6 +355,7 @@ const PDVPage: React.FC = () => {
     setSubmitting(true);
     try {
       const payload = {
+        ...(customer && { customerId: customer.id }),
         items: cart.map(i => ({
           productId: i.product.id,
           quantity: i.quantity,
@@ -179,7 +366,8 @@ const PDVPage: React.FC = () => {
           method: p.method,
           amount: round2(Number(p.amount)),
           installments: 1,
-          reference: '',
+          reference: p.nsu ?? '',
+          ...(p.terminalPaymentId && { terminalPaymentId: p.terminalPaymentId }),
         })),
         ...(discountAmount > 0 && {
           discountType: 'FIXO',
@@ -193,6 +381,10 @@ const PDVPage: React.FC = () => {
       setShowPayment(false);
       setPaymentEntries([{ method: 'DINHEIRO', amount: '' }]);
       setDiscountValue('');
+      setCustomer(null);
+      setCustomerQuery('');
+      setCustomerResults([]);
+      setPayerTaxId('');
       toast.success('Venda registrada com sucesso!');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Erro ao registrar venda');
@@ -489,6 +681,73 @@ const PDVPage: React.FC = () => {
               )}
             </div>
 
+            {/* Cliente (opcional) — alimenta o historico de compras do CRM */}
+            <div style={{
+              padding: 16, marginBottom: 16,
+              background: 'var(--bg-hover)', borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-glass)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <UserCircle size={14} /> Cliente <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(opcional)</span>
+                </span>
+                {customer && (
+                  <button
+                    className="btn btn-ghost btn-icon"
+                    style={{ width: 24, height: 24, color: 'var(--danger-400)' }}
+                    onClick={() => { setCustomer(null); setCustomerQuery(''); setCustomerResults([]); }}
+                    title="Remover cliente"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              {customer ? (
+                <div style={{ fontSize: 14, fontWeight: 600 }}>
+                  {customer.name}
+                  {customer.cpfCnpj && (
+                    <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8 }}>
+                      {customer.cpfCnpj}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div style={{ position: 'relative' }}>
+                  <input
+                    className="form-input"
+                    placeholder="Buscar por nome ou CPF..."
+                    value={customerQuery}
+                    onChange={e => { setCustomerQuery(e.target.value); searchCustomers(e.target.value); }}
+                    style={{ height: 40 }}
+                  />
+                  {customerResults.length > 0 && (
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                      marginTop: 4, maxHeight: 200, overflowY: 'auto',
+                      background: 'var(--bg-card)', border: '1px solid var(--border-glass)',
+                      borderRadius: 'var(--radius-md)', boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                    }}>
+                      {customerResults.map(c => (
+                        <button
+                          key={c.id}
+                          className="btn btn-ghost"
+                          style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 12px', borderRadius: 0, textAlign: 'left' }}
+                          onClick={() => { setCustomer(c); setCustomerResults([]); setCustomerQuery(''); }}
+                        >
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 500 }}>{c.name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                              {[c.cpfCnpj, c.phone].filter(Boolean).join(' · ') || 'sem documento'}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Desconto da venda */}
             <div style={{
               padding: 16, marginBottom: 16,
@@ -584,6 +843,68 @@ const PDVPage: React.FC = () => {
                     <DollarSign size={14} /> Resto
                   </button>
                 </div>
+
+                {/* Cobranca automatica de PIX pela API do PagBank */}
+                {pixEnabled && entry.method === 'PIX' && (
+                  entry.terminalPaymentId ? (
+                    <div style={{
+                      marginTop: 8, padding: '8px 10px', borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                    }}>
+                      <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Check size={14} /> PIX confirmado
+                        {entry.nsu && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>NSU {entry.nsu}</span>}
+                        {entry.cardBrand && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{entry.cardBrand}</span>}
+                      </span>
+                      <button
+                        className="btn btn-ghost btn-icon"
+                        style={{ width: 24, height: 24, color: 'var(--danger-400)' }}
+                        onClick={() => releaseTerminalPayment(idx)}
+                        title="Desvincular esta cobrança"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                    {(
+                      <div style={{ marginTop: 8 }}>
+                        <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
+                          CPF na nota <span style={{ opacity: 0.7 }}>(opcional — em branco usa o CNPJ da loja)</span>
+                        </label>
+                        <input
+                          className="form-input"
+                          placeholder="000.000.000-00"
+                          value={payerTaxId}
+                          onChange={e => setPayerTaxId(formatTaxId(e.target.value))}
+                          style={{
+                            height: 38, fontSize: 14,
+                            borderColor: payerTaxId && !isValidTaxId(payerTaxId) ? 'var(--danger-400)' : undefined,
+                          }}
+                        />
+                        {payerTaxId && !isValidTaxId(payerTaxId) && (
+                          <div style={{ fontSize: 11, color: 'var(--danger-400)', marginTop: 4 }}>
+                            CPF/CNPJ inválido
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <button
+                      className="btn btn-secondary"
+                      style={{ width: '100%', marginTop: 8, height: 40, fontSize: 13 }}
+                      disabled={
+                        !!charging
+                        || !(Number(entry.amount) > 0)
+                        || (!!payerTaxId && !isValidTaxId(payerTaxId))
+                      }
+                      onClick={() => chargeOnTerminal(idx)}
+                    >
+                      <QrCode size={15} /> Gerar QR Code PIX
+                    </button>
+                    </>
+                  )
+                )}
               </div>
             ))}
 
@@ -642,6 +963,51 @@ const PDVPage: React.FC = () => {
               onClick={finalizeSale}
             >
               {submitting ? <span className="loading-spinner" /> : <><Check size={18} /> Confirmar Pagamento</>}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Aguardando a maquininha — o cliente esta com o cartao na mao */}
+      {charging && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16,
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: 420, padding: 32, textAlign: 'center' }}>
+            <h3 style={{ marginBottom: 6 }}>Pagamento via PIX</h3>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
+              O cliente escaneia com o app do banco
+            </p>
+
+            {/* O PagBank serve o PNG do QR numa URL publica, entao da para
+                exibir direto sem precisar gerar a imagem no navegador. */}
+            {charging.qr?.qrCodeImageUrl && (
+              <div style={{ background: '#fff', padding: 12, borderRadius: 'var(--radius-md)', display: 'inline-block', marginBottom: 16 }}>
+                <img src={charging.qr.qrCodeImageUrl} alt="QR Code do PIX" style={{ width: 200, height: 200, display: 'block' }} />
+              </div>
+            )}
+
+            <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--accent-400)', marginBottom: 16 }}>
+              {formatCurrency(round2(Number(paymentEntries[charging.index]?.amount) || 0))}
+            </div>
+
+            {charging.qr?.qrCodeText && (
+              <button
+                className="btn btn-secondary"
+                style={{ width: '100%', marginBottom: 12, fontSize: 13 }}
+                onClick={() => copyPixCode(charging.qr!.qrCodeText!)}
+              >
+                <Copy size={15} /> Copiar código (copia e cola)
+              </button>
+            )}
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 20, color: 'var(--text-muted)', fontSize: 13 }}>
+              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+              Aguardando o pagamento...
+            </div>
+            <button className="btn btn-ghost" style={{ width: '100%' }} onClick={cancelTerminalCharge}>
+              <X size={16} /> Cancelar cobrança
             </button>
           </div>
         </div>

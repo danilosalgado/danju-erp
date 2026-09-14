@@ -39,4 +39,22 @@ public class SalePayment {
 
     @Column(length = 100)
     private String reference;
+
+    // Dados da transacao na maquininha, guardados para o comprovante e para
+    // conciliar a venda com o extrato do PagBank.
+    @Column(length = 50)
+    private String nsu;
+
+    @Column(name = "authorization_code", length = 50)
+    private String authorizationCode;
+
+    @Column(name = "card_brand", length = 30)
+    private String cardBrand;
+
+    @Column(name = "card_last4", length = 4)
+    private String cardLast4;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "terminal_payment_id")
+    private com.storepro.terminal.entity.TerminalPayment terminalPayment;
 }

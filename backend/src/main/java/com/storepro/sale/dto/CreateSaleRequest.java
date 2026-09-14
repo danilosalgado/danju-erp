@@ -46,5 +46,8 @@ public class CreateSaleRequest {
 
         private int installments;
         private String reference;
+
+        /** Cobranca aprovada na maquininha que cobre este pagamento, quando houver. */
+        private UUID terminalPaymentId;
     }
 }

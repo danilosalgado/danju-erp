@@ -13,6 +13,8 @@ import com.storepro.sale.entity.Sale;
 import com.storepro.sale.entity.SaleItem;
 import com.storepro.sale.entity.SalePayment;
 import com.storepro.sale.repository.SaleRepository;
+import com.storepro.terminal.entity.TerminalPayment;
+import com.storepro.terminal.service.TerminalPaymentService;
 import com.storepro.user.entity.User;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -39,6 +42,7 @@ public class SaleService {
     private final SaleRepository saleRepository;
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
+    private final TerminalPaymentService terminalPaymentService;
     private final EntityManager entityManager;
 
     /**
@@ -132,6 +136,7 @@ public class SaleService {
         sale.setTotal(total);
 
         // Process payments
+        List<TerminalPayment> terminalPayments = new ArrayList<>();
         BigDecimal totalPaid = BigDecimal.ZERO;
         for (CreateSaleRequest.SalePaymentRequest payReq : request.getPayments()) {
             BigDecimal amount = money(payReq.getAmount());
@@ -151,6 +156,9 @@ public class SaleService {
                 }
             }
 
+            TerminalPayment terminal = applyTerminalPayment(payment, payReq, amount, null);
+            if (terminal != null) terminalPayments.add(terminal);
+
             sale.getPayments().add(payment);
             totalPaid = totalPaid.add(amount);
         }
@@ -163,6 +171,8 @@ public class SaleService {
         }
 
         Sale saved = saleRepository.saveAndFlush(sale);
+        // A cobranca so pode ser fechada para reuso depois que a venda existe.
+        terminalPayments.forEach(t -> terminalPaymentService.linkToSale(t, saved));
         // Refresh to load DB-generated sale_number (SERIAL)
         entityManager.refresh(saved);
         log.info("Venda #{} realizada: R$ {}", saved.getSaleNumber(), total);
@@ -295,6 +305,7 @@ public class SaleService {
         sale.setTotal(total);
 
         // 5. Process new payments
+        List<TerminalPayment> terminalPayments = new ArrayList<>();
         BigDecimal totalPaid = BigDecimal.ZERO;
         for (CreateSaleRequest.SalePaymentRequest payReq : request.getPayments()) {
             SalePayment payment = SalePayment.builder()
@@ -312,12 +323,18 @@ public class SaleService {
                 }
             }
 
+            // A venda ja existe: a cobranca que ja era dela continua valendo.
+            TerminalPayment terminal = applyTerminalPayment(
+                    payment, payReq, payReq.getAmount(), sale.getId());
+            if (terminal != null) terminalPayments.add(terminal);
+
             sale.getPayments().add(payment);
             totalPaid = totalPaid.add(payReq.getAmount());
         }
 
         sale.setNotes(request.getNotes());
         Sale saved = saleRepository.save(sale);
+        terminalPayments.forEach(t -> terminalPaymentService.linkToSale(t, saved));
         log.info("Venda #{} editada: R$ {}", saved.getId(), total);
 
         return toResponse(saved);
@@ -332,6 +349,31 @@ public class SaleService {
     @Transactional(readOnly = true)
     public long getSalesCount(LocalDateTime start, LocalDateTime end) {
         return saleRepository.countByPeriod(start, end);
+    }
+
+    /**
+     * Copia os dados da transacao aprovada na maquininha para o pagamento da venda.
+     * Validar aqui impede que o PDV registre como pago um cartao que foi recusado,
+     * ou que a mesma autorizacao seja usada em duas vendas.
+     */
+    private TerminalPayment applyTerminalPayment(SalePayment payment,
+                                                 CreateSaleRequest.SalePaymentRequest payReq,
+                                                 BigDecimal amount,
+                                                 UUID saleId) {
+        if (payReq.getTerminalPaymentId() == null) return null;
+
+        TerminalPayment terminal = terminalPaymentService
+                .requireApproved(payReq.getTerminalPaymentId(), amount, saleId);
+
+        payment.setTerminalPayment(terminal);
+        payment.setNsu(terminal.getNsu());
+        payment.setAuthorizationCode(terminal.getAuthorizationCode());
+        payment.setCardBrand(terminal.getCardBrand());
+        payment.setCardLast4(terminal.getCardLast4());
+        if (payment.getReference() == null || payment.getReference().isBlank()) {
+            payment.setReference(terminal.getNsu());
+        }
+        return terminal;
     }
 
     private User getCurrentUser() {
