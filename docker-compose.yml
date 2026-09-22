@@ -1,3 +1,8 @@
+# Nome do projeto fixo. Sem isto o Docker deriva o nome da pasta, e
+# renomear a pasta faz o compose apontar para um volume novo e vazio,
+# deixando o banco anterior orfao.
+name: erp-danju
+
 
 services:
   # ==============================
@@ -94,7 +99,10 @@ services:
 
 volumes:
   postgres_data:
+    # Nome fixo pelo mesmo motivo: desacopla o volume da pasta.
+    name: erp-danju-db
 
 networks:
   storepro-network:
+    name: erp-danju-net
     driver: bridge
