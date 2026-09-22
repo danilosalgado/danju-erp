@@ -68,15 +68,7 @@ public class InventoryService {
 
         // Update cost price if it's an entry movement with unit cost
         if (request.getType() == MovementType.ENTRADA && request.getUnitCost() != null) {
-            // Weighted average cost
-            var totalOldValue = product.getCostPrice().multiply(previousStock);
-            var totalNewValue = request.getUnitCost().multiply(request.getQuantity());
-            if (newStock.compareTo(java.math.BigDecimal.ZERO) > 0) {
-                product.setCostPrice(
-                    totalOldValue.add(totalNewValue)
-                        .divide(newStock, 2, java.math.RoundingMode.HALF_UP)
-                );
-            }
+            product.applyWeightedAverageCost(previousStock, request.getQuantity(), request.getUnitCost());
         }
 
         productRepository.save(product);

@@ -87,6 +87,20 @@ public class Product extends BaseEntity {
     private boolean active = true;
 
     /**
+     * Atualiza o preco de compra pelo custo medio ponderado ao dar entrada de mercadoria.
+     * Deve ser chamado com o estoque ANTERIOR a entrada. Estoque negativo conta como zero.
+     */
+    public void applyWeightedAverageCost(BigDecimal previousStock, BigDecimal quantity, BigDecimal unitCost) {
+        if (unitCost == null || quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) return;
+        BigDecimal oldStock = previousStock.max(BigDecimal.ZERO);
+        BigDecimal newStock = oldStock.add(quantity);
+        BigDecimal oldCost = costPrice != null ? costPrice : BigDecimal.ZERO;
+        costPrice = oldCost.multiply(oldStock)
+                .add(unitCost.multiply(quantity))
+                .divide(newStock, 2, java.math.RoundingMode.HALF_UP);
+    }
+
+    /**
      * Auto-calculate profit margin when costPrice and salePrice are set.
      */
     @PrePersist

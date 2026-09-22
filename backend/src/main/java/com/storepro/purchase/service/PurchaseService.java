@@ -66,7 +66,8 @@ public class PurchaseService {
             purchase.getItems().add(item);
             totalCost = totalCost.add(itemTotal);
 
-            // Increment stock
+            // Atualiza o custo medio (base do CMV) e incrementa o estoque
+            product.applyWeightedAverageCost(product.getCurrentStock(), itemReq.getQuantity(), itemReq.getUnitCost());
             product.setCurrentStock(product.getCurrentStock().add(itemReq.getQuantity()));
             productRepository.save(product);
         }

@@ -84,4 +84,16 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
            "AND s.created_at >= :start AND s.created_at <= :end " +
            "GROUP BY si.product_id, si.product_name ORDER BY revenue DESC LIMIT :limit", nativeQuery = true)
     java.util.List<Object[]> findTopProducts(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end, @Param("limit") int limit);
+
+    // CMV por produto. A receita de cada item recebe sua parte proporcional do desconto
+    // e do acrescimo da venda (total / subtotal), para que a soma bata com o faturamento.
+    @Query(value = "SELECT si.product_id, MAX(si.product_name) as name, MAX(si.unit) as unit, " +
+           "COALESCE(SUM(si.quantity), 0) as qty, " +
+           "COALESCE(SUM(si.total_price * CASE WHEN s.subtotal > 0 THEN s.total / s.subtotal ELSE 1 END), 0) as revenue, " +
+           "COALESCE(SUM(si.quantity * si.unit_cost), 0) as cmv " +
+           "FROM sale_items si JOIN sales s ON s.id = si.sale_id " +
+           "WHERE s.status = 'FINALIZADA' AND si.cancelled = false " +
+           "AND s.created_at >= :start AND s.created_at <= :end " +
+           "GROUP BY si.product_id", nativeQuery = true)
+    java.util.List<Object[]> findCmvByProduct(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }

@@ -1,5 +1,6 @@
 package com.storepro.report;
 
+import com.storepro.report.dto.CmvReportData;
 import com.storepro.report.dto.OperatorStat;
 import com.storepro.report.dto.ProductStat;
 import com.storepro.report.dto.ReportSummaryData;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -89,5 +91,58 @@ public class ReportService {
                         .unit((String) row[4])
                         .build())
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CmvReportData getCmv(LocalDateTime start, LocalDateTime end) {
+        List<CmvReportData.ProductCmv> products = saleRepository.findCmvByProduct(start, end).stream()
+                .map(row -> {
+                    BigDecimal qty = (BigDecimal) row[3];
+                    BigDecimal revenue = money((BigDecimal) row[4]);
+                    BigDecimal cmv = money((BigDecimal) row[5]);
+                    BigDecimal profit = revenue.subtract(cmv);
+                    return CmvReportData.ProductCmv.builder()
+                            .productId((UUID) row[0])
+                            .productName((String) row[1])
+                            .unit((String) row[2])
+                            .quantitySold(qty)
+                            .revenue(revenue)
+                            .cmv(cmv)
+                            .profit(profit)
+                            .margin(percent(profit, revenue))
+                            .averageUnitPrice(perUnit(revenue, qty))
+                            .averageUnitCost(perUnit(cmv, qty))
+                            .build();
+                })
+                .sorted(Comparator.comparing(CmvReportData.ProductCmv::getProfit).reversed())
+                .toList();
+
+        BigDecimal totalRevenue = products.stream().map(CmvReportData.ProductCmv::getRevenue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalCmv = products.stream().map(CmvReportData.ProductCmv::getCmv)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalProfit = totalRevenue.subtract(totalCmv);
+
+        return CmvReportData.builder()
+                .totalRevenue(totalRevenue)
+                .totalCmv(totalCmv)
+                .totalProfit(totalProfit)
+                .margin(percent(totalProfit, totalRevenue))
+                .products(products)
+                .build();
+    }
+
+    private static BigDecimal money(BigDecimal value) {
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal percent(BigDecimal part, BigDecimal whole) {
+        return whole.signum() != 0
+                ? part.multiply(BigDecimal.valueOf(100)).divide(whole, 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+    }
+
+    private static BigDecimal perUnit(BigDecimal total, BigDecimal qty) {
+        return qty.signum() != 0 ? total.divide(qty, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
     }
 }

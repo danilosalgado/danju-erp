@@ -41,10 +41,12 @@ public class DashboardService {
         long todaySales = saleRepository.countByPeriod(todayStart, todayEnd);
         long monthSales = saleRepository.countByPeriod(monthStart, todayEnd);
         
+        // Custos = compras de mercadoria para a loja. Despesas = contas do negocio
+        // (aluguel, energia, salarios...). Sao contas separadas.
+        BigDecimal monthCosts = purchaseRepository.sumTotalByPeriod(monthStartDay, todayDay);
         BigDecimal monthExpenses = expenseRepository.sumPaidByPeriod(monthStartDay, todayDay);
-        BigDecimal monthPurchases = purchaseRepository.sumTotalByPeriod(monthStartDay, todayDay);
-        BigDecimal monthCosts = monthExpenses.add(monthPurchases);
-        BigDecimal netProfit = monthRevenue.subtract(monthCosts);
+        BigDecimal grossProfit = monthRevenue.subtract(monthCosts);
+        BigDecimal netProfit = grossProfit.subtract(monthExpenses);
 
         BigDecimal avgTicket = monthSales > 0
                 ? monthRevenue.divide(BigDecimal.valueOf(monthSales), 2, RoundingMode.HALF_UP)
@@ -86,6 +88,8 @@ public class DashboardService {
                 .todayRevenue(todayRevenue)
                 .monthRevenue(monthRevenue)
                 .monthCosts(monthCosts)
+                .monthExpenses(monthExpenses)
+                .grossProfit(grossProfit)
                 .netProfit(netProfit)
                 .todaySales(todaySales)
                 .monthSales(monthSales)

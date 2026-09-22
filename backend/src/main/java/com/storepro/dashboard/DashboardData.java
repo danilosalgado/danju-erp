@@ -16,7 +16,13 @@ public class DashboardData {
 
     private BigDecimal todayRevenue;
     private BigDecimal monthRevenue;
+    /** Compras de mercadoria no mes. */
     private BigDecimal monthCosts;
+    /** Despesas pagas no mes (aluguel, energia, salarios...). */
+    private BigDecimal monthExpenses;
+    /** Faturamento - custos (compras). */
+    private BigDecimal grossProfit;
+    /** Faturamento - (custos + despesas). */
     private BigDecimal netProfit;
     private long todaySales;
     private long monthSales;

@@ -163,7 +163,7 @@ public class InvoiceImportService {
         if (existing.isPresent()) {
             // Update existing product
             Product product = existing.get();
-            product.setCostPrice(unitPrice);
+            product.applyWeightedAverageCost(product.getCurrentStock(), quantity, unitPrice);
             product.setCurrentStock(product.getCurrentStock().add(quantity));
             if (supplier != null) product.setSupplier(supplier);
             savedProduct = productRepository.save(product);

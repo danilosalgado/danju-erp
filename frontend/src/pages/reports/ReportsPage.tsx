@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   BarChart3, Receipt, Users, Package, Download, DollarSign,
-  TrendingUp, Ban, Percent,
+  TrendingUp, Ban, Percent, Calculator, ShoppingCart,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -27,6 +27,15 @@ interface OperatorStat {
 interface ProductStat {
   productId: string; productName: string; quantitySold: number; unit: string; revenue: number;
 }
+interface ProductCmv {
+  productId: string; productName: string; unit: string; quantitySold: number;
+  revenue: number; cmv: number; profit: number; margin: number;
+  averageUnitPrice: number; averageUnitCost: number;
+}
+interface CmvReport {
+  totalRevenue: number; totalCmv: number; totalProfit: number; margin: number;
+  products: ProductCmv[];
+}
 interface SaleListItem {
   id: string; saleNumber: number; customerName: string | null; userName: string | null;
   total: number; status: string; items: unknown[]; payments: { method: string }[]; createdAt: string;
@@ -37,6 +46,7 @@ const TABS = [
   { key: 'extrato', label: 'Extrato de Vendas', icon: Receipt },
   { key: 'operador', label: 'Por Operador', icon: Users },
   { key: 'produtos', label: 'Produtos', icon: Package },
+  { key: 'cmv', label: 'CMV / Lucro por Produto', icon: Calculator },
 ] as const;
 
 const methodLabels: Record<string, string> = {
@@ -54,6 +64,11 @@ const formatQty = (qty: number, unit: string) => {
   const formatted = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: isWhole ? 0 : 3 }).format(qty);
   return `${formatted} ${(unit || 'un').toLowerCase()}`;
 };
+
+const formatPercent = (value: number) =>
+  `${new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value ?? 0)}%`;
+
+const csvNumber = (value: number) => Number(value ?? 0).toFixed(2).replace('.', ',');
 
 const formatDate = (dateStr: string) => {
   const d = new Date(dateStr + 'T00:00:00');
@@ -90,6 +105,7 @@ const ReportsPage: React.FC = () => {
   const [operators, setOperators] = useState<OperatorStat[]>([]);
   const [products, setProducts] = useState<ProductStat[]>([]);
   const [productLimit, setProductLimit] = useState(20);
+  const [cmv, setCmv] = useState<CmvReport | null>(null);
 
   const [sales, setSales] = useState<SaleListItem[]>([]);
   const [salesTotal, setSalesTotal] = useState(0);
@@ -129,6 +145,15 @@ const ReportsPage: React.FC = () => {
     finally { setLoading(false); }
   };
 
+  const fetchCmv = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get<ApiResponse<CmvReport>>('/reports/cmv', { params: dateParams() });
+      setCmv(res.data.data);
+    } catch { toast.error('Erro ao carregar o CMV'); }
+    finally { setLoading(false); }
+  };
+
   const fetchSales = async () => {
     setLoading(true);
     try {
@@ -147,6 +172,7 @@ const ReportsPage: React.FC = () => {
     if (tab === 'operador') fetchOperators();
     if (tab === 'produtos') fetchProducts();
     if (tab === 'extrato') fetchSales();
+    if (tab === 'cmv') fetchCmv();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, startDate, endDate, salesPage, productLimit]);
 
@@ -175,6 +201,27 @@ const ReportsPage: React.FC = () => {
       toast.success('Extrato exportado');
     } catch { toast.error('Erro ao exportar extrato'); }
     finally { setExporting(false); }
+  };
+
+  const exportCmv = () => {
+    if (!cmv) return;
+    const rows: (string | number)[][] = [
+      ['Produto', 'Qtd. vendida', 'Unidade', 'Preço médio venda', 'Custo médio compra', 'Faturamento', 'CMV', 'Lucro', 'Margem %'],
+      ...cmv.products.map(p => [
+        p.productName,
+        String(p.quantitySold).replace('.', ','),
+        p.unit,
+        csvNumber(p.averageUnitPrice),
+        csvNumber(p.averageUnitCost),
+        csvNumber(p.revenue),
+        csvNumber(p.cmv),
+        csvNumber(p.profit),
+        csvNumber(p.margin),
+      ]),
+      ['TOTAL', '', '', '', '', csvNumber(cmv.totalRevenue), csvNumber(cmv.totalCmv), csvNumber(cmv.totalProfit), csvNumber(cmv.margin)],
+    ];
+    downloadCsv(`cmv_${startDate}_a_${endDate}.csv`, rows);
+    toast.success('CMV exportado');
   };
 
   const chartData = (summary?.dailySales ?? []).map(s => ({ date: formatDate(s.date), revenue: s.revenue }));
@@ -524,6 +571,106 @@ const ReportsPage: React.FC = () => {
             </table>
           )}
         </div>
+        </>
+      )}
+
+      {/* CMV */}
+      {!loading && tab === 'cmv' && cmv && (
+        <>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-icon primary"><DollarSign size={24} /></div>
+              <div className="stat-info">
+                <div className="stat-label">Faturamento</div>
+                <div className="stat-value">{formatCurrency(cmv.totalRevenue)}</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon warning"><ShoppingCart size={24} /></div>
+              <div className="stat-info">
+                <div className="stat-label">CMV (custo do que foi vendido)</div>
+                <div className="stat-value">{formatCurrency(cmv.totalCmv)}</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className={`stat-icon ${cmv.totalProfit >= 0 ? 'accent' : 'danger'}`}><TrendingUp size={24} /></div>
+              <div className="stat-info">
+                <div className="stat-label">Lucro sobre o CMV</div>
+                <div className="stat-value">{formatCurrency(cmv.totalProfit)}</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon info"><Percent size={24} /></div>
+              <div className="stat-info">
+                <div className="stat-label">Margem média</div>
+                <div className="stat-value">{formatPercent(cmv.margin)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="table-container">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--border-glass)', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                Lucro de cada produto vendido, pelo preço de compra registrado no momento da venda
+              </span>
+              <button className="btn btn-secondary btn-sm" onClick={exportCmv} disabled={cmv.products.length === 0}>
+                <Download size={14} /> Exportar CSV
+              </button>
+            </div>
+            {cmv.products.length === 0 ? (
+              <div className="empty-state">
+                <Calculator size={64} />
+                <h3>Nenhuma venda no período</h3>
+              </div>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th style={{ textAlign: 'right' }}>Qtd. vendida</th>
+                    <th style={{ textAlign: 'right' }}>Preço médio</th>
+                    <th style={{ textAlign: 'right' }}>Custo médio</th>
+                    <th style={{ textAlign: 'right' }}>Faturamento</th>
+                    <th style={{ textAlign: 'right' }}>CMV</th>
+                    <th style={{ textAlign: 'right' }}>Lucro</th>
+                    <th style={{ textAlign: 'right' }}>Margem</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cmv.products.map(p => {
+                    const profitColor = p.profit >= 0 ? 'var(--primary-400)' : 'var(--danger-400)';
+                    return (
+                      <tr key={p.productId}>
+                        <td style={{ fontWeight: 500 }}>
+                          {p.productName}
+                          {p.cmv === 0 && (
+                            <div style={{ fontSize: 11, color: 'var(--warning-400)' }}>Sem preço de compra cadastrado</div>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>{formatQty(p.quantitySold, p.unit)}</td>
+                        <td style={{ textAlign: 'right' }}>{formatCurrency(p.averageUnitPrice)}</td>
+                        <td style={{ textAlign: 'right' }}>{formatCurrency(p.averageUnitCost)}</td>
+                        <td style={{ textAlign: 'right' }}>{formatCurrency(p.revenue)}</td>
+                        <td style={{ textAlign: 'right', color: 'var(--warning-400)' }}>{formatCurrency(p.cmv)}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 600, color: profitColor }}>{formatCurrency(p.profit)}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 600, color: profitColor }}>{formatPercent(p.margin)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr style={{ fontWeight: 700 }}>
+                    <td>Total</td>
+                    <td colSpan={3}></td>
+                    <td style={{ textAlign: 'right' }}>{formatCurrency(cmv.totalRevenue)}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--warning-400)' }}>{formatCurrency(cmv.totalCmv)}</td>
+                    <td style={{ textAlign: 'right', color: cmv.totalProfit >= 0 ? 'var(--primary-400)' : 'var(--danger-400)' }}>{formatCurrency(cmv.totalProfit)}</td>
+                    <td style={{ textAlign: 'right' }}>{formatPercent(cmv.margin)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+          </div>
         </>
       )}
     </div>

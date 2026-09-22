@@ -1,6 +1,7 @@
 package com.storepro.report;
 
 import com.storepro.common.dto.ApiResponse;
+import com.storepro.report.dto.CmvReportData;
 import com.storepro.report.dto.OperatorStat;
 import com.storepro.report.dto.ProductStat;
 import com.storepro.report.dto.ReportSummaryData;
@@ -47,6 +48,14 @@ public class ReportController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             @RequestParam(defaultValue = "20") int limit) {
         return ResponseEntity.ok(ApiResponse.success(reportService.getTopProducts(resolveStart(startDate), resolveEnd(endDate), limit)));
+    }
+
+    @GetMapping("/cmv")
+    @Operation(summary = "CMV e lucro por produto no período")
+    public ResponseEntity<ApiResponse<CmvReportData>> getCmv(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+        return ResponseEntity.ok(ApiResponse.success(reportService.getCmv(resolveStart(startDate), resolveEnd(endDate))));
     }
 
     private LocalDateTime resolveStart(LocalDateTime start) {

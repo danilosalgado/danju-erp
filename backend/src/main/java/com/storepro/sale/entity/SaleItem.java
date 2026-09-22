@@ -37,6 +37,11 @@ public class SaleItem {
     @Column(name = "unit_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal unitPrice;
 
+    /** Preco de compra do produto no momento da venda (base do CMV). */
+    @Column(name = "unit_cost", nullable = false, precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal unitCost = BigDecimal.ZERO;
+
     @Column(precision = 12, scale = 2)
     @Builder.Default
     private BigDecimal discount = BigDecimal.ZERO;

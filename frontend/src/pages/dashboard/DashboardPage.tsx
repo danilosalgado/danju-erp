@@ -8,6 +8,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   BarChart3,
+  Receipt,
+  Wallet,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -40,6 +42,8 @@ interface DashboardData {
   todayRevenue: number;
   monthRevenue: number;
   monthCosts: number;
+  monthExpenses: number;
+  grossProfit: number;
   netProfit: number;
   todaySales: number;
   monthSales: number;
@@ -117,17 +121,33 @@ const DashboardPage: React.FC = () => {
     {
       label: 'Custos do Mês',
       value: formatCurrency(d.monthCosts ?? 0),
-      change: 'Despesas e compras',
+      change: 'Compras de mercadoria',
       positive: false,
       icon: ShoppingCart,
       color: 'warning',
     },
     {
+      label: 'Despesas do Mês',
+      value: formatCurrency(d.monthExpenses ?? 0),
+      change: 'Contas pagas',
+      positive: false,
+      icon: Receipt,
+      color: 'danger',
+    },
+    {
+      label: 'Lucro Bruto',
+      value: formatCurrency(d.grossProfit ?? 0),
+      change: 'Faturamento − custos',
+      positive: (d.grossProfit ?? 0) >= 0,
+      icon: TrendingUp,
+      color: (d.grossProfit ?? 0) >= 0 ? 'accent' : 'warning',
+    },
+    {
       label: 'Lucro Líquido',
       value: formatCurrency(d.netProfit ?? 0),
-      change: 'Caixa do mês',
+      change: 'Faturamento − (custos + despesas)',
       positive: (d.netProfit ?? 0) >= 0,
-      icon: DollarSign,
+      icon: Wallet,
       color: (d.netProfit ?? 0) >= 0 ? 'primary' : 'warning',
     },
     {

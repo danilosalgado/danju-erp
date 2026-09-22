@@ -33,7 +33,6 @@ const CATEGORIES = [
   { value: 'INTERNET', label: '🌐 Internet', color: '#8b5cf6' },
   { value: 'SALARIOS', label: '👥 Salários', color: '#10b981' },
   { value: 'IMPOSTOS', label: '📋 Impostos', color: '#ef4444' },
-  { value: 'FORNECEDORES', label: '🚚 Fornecedores', color: '#f97316' },
   { value: 'MANUTENCAO', label: '🔧 Manutenção', color: '#64748b' },
   { value: 'OUTROS', label: '📦 Outros', color: '#94a3b8' },
 ];
