@@ -79,7 +79,8 @@ const firstDayOfMonth = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 };
-const todayStr = () => new Date().toISOString().slice(0, 10);
+// Data local (toISOString daria a data em UTC, que vira o dia seguinte depois das 21h)
+const todayStr = () => new Date().toLocaleDateString('sv-SE');
 
 const downloadCsv = (filename: string, rows: (string | number)[][]) => {
   const content = rows.map(r => r.map(cell => {
@@ -114,8 +115,9 @@ const ReportsPage: React.FC = () => {
   const [exporting, setExporting] = useState(false);
 
   const dateParams = () => ({
-    startDate: new Date(startDate + 'T00:00:00').toISOString(),
-    endDate: new Date(endDate + 'T23:59:59').toISOString(),
+    // Horario local: o backend grava e filtra no horario de Brasilia
+    startDate: `${startDate}T00:00:00`,
+    endDate: `${endDate}T23:59:59`,
   });
 
   const fetchSummary = async () => {

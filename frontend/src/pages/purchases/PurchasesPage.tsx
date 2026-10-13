@@ -55,7 +55,7 @@ const PurchasesPage: React.FC = () => {
 
   // Form state
   const [supplierId, setSupplierId] = useState('');
-  const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
+  const [purchaseDate, setPurchaseDate] = useState(new Date().toLocaleDateString('sv-SE'));
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<PurchaseItem[]>([{ productId: '', productName: '', quantity: '1', unitCost: '' }]);
   const [submitting, setSubmitting] = useState(false);

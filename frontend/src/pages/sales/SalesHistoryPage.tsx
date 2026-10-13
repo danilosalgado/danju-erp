@@ -78,8 +78,9 @@ const SalesHistoryPage: React.FC = () => {
   const filterParams = () => {
     const params: any = {};
     if (statusFilter) params.status = statusFilter;
-    if (startDate) params.startDate = new Date(startDate).toISOString();
-    if (endDate) params.endDate = new Date(endDate + 'T23:59:59').toISOString();
+    // Horario local: o backend grava e filtra no horario de Brasilia
+    if (startDate) params.startDate = `${startDate}T00:00:00`;
+    if (endDate) params.endDate = `${endDate}T23:59:59`;
     return params;
   };
 
