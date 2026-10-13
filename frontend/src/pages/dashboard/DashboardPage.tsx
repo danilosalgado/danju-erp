@@ -42,6 +42,7 @@ interface DashboardData {
   todayRevenue: number;
   monthRevenue: number;
   monthCosts: number;
+  monthPurchases: number;
   monthExpenses: number;
   grossProfit: number;
   netProfit: number;
@@ -119,12 +120,20 @@ const DashboardPage: React.FC = () => {
       color: 'accent',
     },
     {
-      label: 'Custos do Mês',
+      label: 'CMV do Mês',
       value: formatCurrency(d.monthCosts ?? 0),
-      change: 'Compras de mercadoria',
+      change: 'Custo do que foi vendido',
       positive: false,
       icon: ShoppingCart,
       color: 'warning',
+    },
+    {
+      label: 'Compras do Mês',
+      value: formatCurrency(d.monthPurchases ?? 0),
+      change: 'Reposição de estoque',
+      positive: true,
+      icon: Package,
+      color: 'info',
     },
     {
       label: 'Despesas do Mês',
@@ -137,7 +146,7 @@ const DashboardPage: React.FC = () => {
     {
       label: 'Lucro Bruto',
       value: formatCurrency(d.grossProfit ?? 0),
-      change: 'Faturamento − custos',
+      change: 'Faturamento − CMV',
       positive: (d.grossProfit ?? 0) >= 0,
       icon: TrendingUp,
       color: (d.grossProfit ?? 0) >= 0 ? 'accent' : 'warning',
@@ -145,7 +154,7 @@ const DashboardPage: React.FC = () => {
     {
       label: 'Lucro Líquido',
       value: formatCurrency(d.netProfit ?? 0),
-      change: 'Faturamento − (custos + despesas)',
+      change: 'Bruto − despesas',
       positive: (d.netProfit ?? 0) >= 0,
       icon: Wallet,
       color: (d.netProfit ?? 0) >= 0 ? 'primary' : 'warning',

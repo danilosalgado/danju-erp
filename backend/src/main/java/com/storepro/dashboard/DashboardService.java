@@ -41,9 +41,12 @@ public class DashboardService {
         long todaySales = saleRepository.countByPeriod(todayStart, todayEnd);
         long monthSales = saleRepository.countByPeriod(monthStart, todayEnd);
         
-        // Custos = compras de mercadoria para a loja. Despesas = contas do negocio
-        // (aluguel, energia, salarios...). Sao contas separadas.
-        BigDecimal monthCosts = purchaseRepository.sumTotalByPeriod(monthStartDay, todayDay);
+        // Custo = CMV (custo das mercadorias efetivamente vendidas no mes). Compra de
+        // mercadoria e estoque (ativo), so vira custo quando vende; por isso as compras
+        // aparecem a parte, fora do calculo do lucro. Despesas = contas do negocio
+        // (aluguel, energia, salarios...).
+        BigDecimal monthCosts = saleRepository.sumCmvByPeriod(monthStart, todayEnd);
+        BigDecimal monthPurchases = purchaseRepository.sumTotalByPeriod(monthStartDay, todayDay);
         BigDecimal monthExpenses = expenseRepository.sumPaidByPeriod(monthStartDay, todayDay);
         BigDecimal grossProfit = monthRevenue.subtract(monthCosts);
         BigDecimal netProfit = grossProfit.subtract(monthExpenses);
@@ -88,6 +91,7 @@ public class DashboardService {
                 .todayRevenue(todayRevenue)
                 .monthRevenue(monthRevenue)
                 .monthCosts(monthCosts)
+                .monthPurchases(monthPurchases)
                 .monthExpenses(monthExpenses)
                 .grossProfit(grossProfit)
                 .netProfit(netProfit)

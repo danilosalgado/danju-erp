@@ -16,13 +16,15 @@ public class DashboardData {
 
     private BigDecimal todayRevenue;
     private BigDecimal monthRevenue;
-    /** Compras de mercadoria no mes. */
+    /** CMV: custo das mercadorias vendidas no mes. */
     private BigDecimal monthCosts;
+    /** Compras de mercadoria no mes (reposicao de estoque, nao entra no lucro). */
+    private BigDecimal monthPurchases;
     /** Despesas pagas no mes (aluguel, energia, salarios...). */
     private BigDecimal monthExpenses;
-    /** Faturamento - custos (compras). */
+    /** Faturamento - CMV. */
     private BigDecimal grossProfit;
-    /** Faturamento - (custos + despesas). */
+    /** Faturamento - CMV - despesas. */
     private BigDecimal netProfit;
     private long todaySales;
     private long monthSales;

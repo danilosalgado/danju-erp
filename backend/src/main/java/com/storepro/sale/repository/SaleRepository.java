@@ -96,4 +96,11 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
            "AND s.created_at >= :start AND s.created_at <= :end " +
            "GROUP BY si.product_id", nativeQuery = true)
     java.util.List<Object[]> findCmvByProduct(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    // CMV total do periodo: custo (no momento da venda) das mercadorias efetivamente vendidas.
+    @Query(value = "SELECT COALESCE(SUM(si.quantity * si.unit_cost), 0) " +
+           "FROM sale_items si JOIN sales s ON s.id = si.sale_id " +
+           "WHERE s.status = 'FINALIZADA' AND si.cancelled = false " +
+           "AND s.created_at >= :start AND s.created_at <= :end", nativeQuery = true)
+    BigDecimal sumCmvByPeriod(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }

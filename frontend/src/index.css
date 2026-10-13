@@ -608,7 +608,7 @@ input, select, textarea {
   box-shadow: 0 0 16px rgba(14, 165, 233, 0.08);
 }
 
-.stat-info { flex: 1; position: relative; z-index: 1; }
+.stat-info { flex: 1; min-width: 0; position: relative; z-index: 1; }
 
 .stat-label {
   font-size: 13px;
@@ -631,9 +631,14 @@ input, select, textarea {
   font-size: 12px;
   font-weight: 600;
   margin-top: 6px;
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  max-width: 100%;
+  line-height: 1.3;
+  border-radius: 12px;
+  box-sizing: border-box;
 }
+
+.stat-change svg { flex-shrink: 0; }
 
 .stat-change.positive {
   color: var(--primary-400);
